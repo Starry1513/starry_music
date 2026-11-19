@@ -1,5 +1,7 @@
 # 群星音乐 Starry Music
 
+**中文** | [English](README.en.md)
+
 用手机、平板或电脑遥控家里的 DLNA 播放器：在播放器的曲库里点歌，在手机上看同步歌词，管理歌单，和播放器互传文件。主要在 **A&K ACRO CA1000T** 上实测，其他支持 DLNA / UPnP 的播放器大多也能用（见下面的兼容表）。
 
 声音始终由播放器自己放，手机只是遥控器：音质不经过手机，手机锁屏、离开也不影响播放。
@@ -9,7 +11,7 @@
 | 版本 | 跑在哪 | 怎么打开 |
 |---|---|---|
 | 电脑版 | Windows / macOS / Linux，需要 Node.js 18+，没有其他依赖 | `node server.js`，浏览器打开 `http://电脑IP:8790/?k=口令` |
-| 手机 / 平板版 | Android 10+ 的 App（`android/StarryMusic.apk`） | 装好直接打开，不需要电脑 |
+| 手机 / 平板版 | Android 10+ 的 App（用 `android/` 自己构建，见下面） | 装好直接打开，不需要电脑 |
 
 两个版本的界面和接口是同一套（`ui/music.html` + `/api/music/*`）。电脑版也可以挂进「群星」中台（`integrations/constellation.js`）。
 
@@ -126,6 +128,8 @@ CA1000T 已知的问题：
 
 瓶颈在播放器的 FTP 服务，大约 2 MB/s。一首 30 MB 的 FLAC 要传 15 秒左右。
 
+这也是写歌曲信息慢的原因：播放器没有改标签的接口，FTP 也不能只改文件的一部分，所以每首都要整首下载、改好、再整首传回，一首约 30 秒。
+
 ## 构建安卓版
 
 不用 Gradle。需要 JDK 17、`android-34.jar`、`dalvik-exchange`（dx）、`aapt`、`zipalign`、`apksigner`：
@@ -143,15 +147,17 @@ AJ=/path/to/android-34.jar KS=/path/to/your.keystore ./build.sh
 server.js                 电脑版服务
 core/music.js             核心：发现、播放控制、队列、曲库、歌单、FTP 传输
 core/extras.js            多来源歌词和换歌词、单词点查、听歌统计、自动歌单、设置
+core/meta.js              整理：查歌曲信息、改前改后、写入、专辑缺歌
+core/artist_alias.json    歌手名的不同写法 → 统一写法
 core/ftp.js               小 FTP 客户端
 core/opencc_t2cn.js       繁转简（opencc-js）
 ui/music.html             界面（电脑版和安卓版共用）
 integrations/             挂进群星中台的外壳
 android/                  安卓版（Java，无 Gradle）
-tools/tagfix.py           补写/统一歌曲标签（歌名、歌手、专辑），原标签留底可还原
+tools/tagfix.py           写歌曲标签（歌名、歌手、专辑、封面…），原标签留底可还原
 ```
 
 ## 隐私
 
 - 所有数据都存在自己的设备上：队列、歌单副本、听歌统计、换歌词的选择。
-- 只有两种联网：查歌词（LRCLIB、网易云）和查单词（有道）。发出去的只有歌名、歌手、时长或单词本身。
+- 联网的只有：查歌词（LRCLIB、网易云）、查歌曲信息和封面（网易云、Apple Music）、查单词（有道）。发出去的只有歌名、歌手、时长、专辑名或单词本身。

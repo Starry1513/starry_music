@@ -28,3 +28,8 @@ test/
 *.before_*
 .DS_Store
 Thumbs.db
+
+# 签名钥匙和密码（只留在自己电脑上，丢了以后就没法给已装的 App 发更新）
+android/release-keystore.txt
+# 发布用的 APK 放这里，传到 GitHub Release，不进仓库
+release/
