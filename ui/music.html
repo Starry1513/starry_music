@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0a14">
+<title>群星音乐</title>
+<style>
+:root{--bg:#05040d;--glass:rgba(22,18,48,.55);--glass2:rgba(34,28,72,.6);--line:rgba(170,150,255,.16);--tx:#f1eeff;--mut:#a59fcf;--acc:#c9a7ff;--acc2:#ffd98a;--acc3:#8fd4ff;--ok:#8ff0c0;--bad:#ff9fb0;--glow:0 0 18px rgba(201,167,255,.45)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;color:var(--tx);font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100%}
+html{background:var(--bg)}body{background:transparent}
+body{display:flex;flex-direction:column;max-width:900px;margin:0 auto;position:relative}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:-1;display:block}
+body.embed #sky{display:none}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px 6px}
+header h1{font-size:18px;font-weight:600;margin:0;flex:1;letter-spacing:2px;background:linear-gradient(90deg,#fff,#c9a7ff 60%,#8fd4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+header h1::before{content:"✦ ";color:var(--acc2);-webkit-text-fill-color:var(--acc2)}
+.dot{width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;margin-right:6px}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.tabs{display:flex;gap:6px;padding:4px 14px 10px}
+.tabs button{flex:1;background:var(--glass);color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:8px 0;font-size:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:all .25s}
+.tabs button.on{color:#fff;border-color:rgba(201,167,255,.7);background:linear-gradient(135deg,rgba(150,110,255,.35),rgba(80,150,255,.25));box-shadow:var(--glow)}
+main{flex:1;overflow:hidden;position:relative}
+section{position:absolute;inset:0;overflow-y:auto;padding:4px 14px 14px;display:none;scrollbar-width:thin}
+section.on{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#lyr{text-align:center;padding:28vh 8px 40vh;font-size:18px;line-height:1.55}
+#lyr p{margin:0;padding:9px 4px;color:rgba(200,195,235,.55);transition:color .35s,transform .35s,text-shadow .35s;cursor:pointer}
+#lyr p.cur{color:#fff;transform:scale(1.08);font-weight:600;text-shadow:0 0 14px rgba(201,167,255,.9),0 0 28px rgba(143,212,255,.45)}
+#lyr .note{color:var(--mut);font-size:15px;padding-top:10vh}
+#lyr p .tr{display:block;font-size:.78em;opacity:.75;margin-top:2px}
+#lyr p.cur .tr{opacity:.9;font-weight:400}
+#lyr .w{border-bottom:1px dotted rgba(201,167,255,.35);border-radius:3px;padding:0 1px}
+#lyr .w:active,#lyr .w.hit{background:rgba(201,167,255,.25)}
+.lyrbtn{position:fixed;right:14px;top:96px;z-index:5;background:var(--glass);border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:5px 11px;font-size:12px;backdrop-filter:blur(8px)}
+.lyrbtn.hide{display:none}
+.wcard{position:fixed;left:50%;transform:translateX(-50%);bottom:210px;z-index:9;width:min(92vw,420px);background:linear-gradient(170deg,rgba(40,30,90,.97),rgba(14,12,36,.98));border:1px solid var(--line);border-radius:18px;padding:12px 14px;box-shadow:var(--glow);display:none}
+.wcard.on{display:block}.wcard h4{margin:0 0 2px;font-size:18px}.wcard .ph{color:var(--mut);font-size:12px;margin-left:6px;font-weight:400}
+.wcard .zh{font-size:14px;margin:6px 0 10px;white-space:pre-wrap;max-height:30vh;overflow:auto}.wcard .acts{display:flex;gap:8px;justify-content:flex-end}
+.gear{background:none;border:none;color:var(--mut);padding:4px;width:30px;height:30px}.gear svg{width:20px;height:20px}
+.sw{display:flex;align-items:center;gap:10px;padding:12px 10px;border-bottom:1px solid var(--line);font-size:14px}.sw span{flex:1}.sw small{display:block;color:var(--mut);font-size:12px}
+.sw input{width:20px;height:20px;accent-color:#c9a7ff}
+.lsr{display:flex;gap:6px;margin:4px 6px 8px}.lsr input{flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:8px}
+.stat{display:flex;gap:10px;flex-wrap:wrap;margin:6px 4px 10px}.stat div{flex:1;min-width:120px;border:1px solid var(--line);border-radius:14px;padding:8px 10px;background:var(--glass)}.stat b{display:block;font-size:18px}.stat span{color:var(--mut);font-size:12px}
+.crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:13px;color:var(--mut);margin:4px 2px 8px}
+.crumb a{color:var(--acc);text-decoration:none}
+.bar2{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
+.btn{background:var(--glass);color:var(--tx);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btn.pri{border-color:rgba(201,167,255,.7);color:#fff;background:linear-gradient(135deg,rgba(150,110,255,.45),rgba(80,150,255,.3));box-shadow:var(--glow)}
+.btn.sm{padding:5px 11px;font-size:12px}
+.list{background:var(--glass);border:1px solid var(--line);border-radius:16px;overflow:hidden;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.row{display:flex;align-items:center;gap:10px;padding:11px 10px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .2s}
+.row:last-child{border-bottom:none}
+.row:active,.row:hover{background:rgba(160,130,255,.12)}
+.row .i{width:30px;text-align:center;color:var(--mut);font-size:13px;flex:none}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t span{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.row .r{font-size:12px;color:var(--mut);flex:none}
+.row .m{background:none;border:none;color:var(--mut);font-size:20px;padding:0 6px;flex:none}
+.row.playing b{color:var(--acc2);text-shadow:0 0 10px rgba(255,217,138,.6)}
+.row.playing .i{color:var(--acc2)}
+.row.dim{opacity:.45}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:4px 4px 8px}.seg .btn.on{border-color:rgba(201,167,255,.8);color:#fff;background:rgba(150,110,255,.3)}
+.ck{width:20px;height:20px;accent-color:#c9a7ff;flex:none}
+.chip{display:inline-block;font-size:11px;color:#ffd98a;border:1px solid rgba(255,217,138,.35);border-radius:999px;padding:0 7px;margin:2px 4px 0 0}
+.chip.ok{color:#9be7c4;border-color:rgba(155,231,196,.4)}.chip.lo{color:#ff9ab0;border-color:rgba(255,154,176,.4)}
+.mcard{border:1px solid var(--line);border-radius:16px;padding:10px;margin:8px 2px;background:var(--glass);display:flex;gap:10px;align-items:flex-start}
+.mcard .cv{display:flex;gap:4px;flex:none;align-items:center}.mcard .cv img,.mcard .cv span{width:46px;height:46px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.06);display:block}
+.mcard .cv i{color:var(--mut);font-style:normal;font-size:12px}
+.mcard .fx{flex:1;min-width:0;font-size:13px}.mcard .fx .fn{color:var(--mut);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dl{display:grid;grid-template-columns:40px 1fr;gap:2px 6px;margin-top:4px}.dl b{font-weight:400;color:var(--mut);font-size:12px}
+.dl .v{min-width:0;overflow-wrap:anywhere}.dl del{color:rgba(255,154,176,.85);text-decoration:line-through;margin-right:6px}.dl ins{color:#9be7c4;text-decoration:none;cursor:pointer}.dl .same{color:var(--tx);opacity:.75;cursor:pointer}
+.mbar{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;padding:8px 4px;background:linear-gradient(0deg,rgba(5,4,13,.95),rgba(5,4,13,.6));backdrop-filter:blur(6px);z-index:2}.mbar span{flex:1;font-size:12px;color:var(--mut)}
+.more{display:block;margin:12px auto}
+footer{margin:0 10px calc(10px + env(safe-area-inset-bottom));padding:12px 16px 12px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,rgba(40,30,90,.72),rgba(14,12,36,.78));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 -6px 30px rgba(110,80,255,.18)}
+.np{display:flex;gap:12px;align-items:center}
+.disc{width:56px;height:56px;border-radius:50%;flex:none;position:relative;background:radial-gradient(circle at 50% 50%,#0b0920 0 18%,#2b2160 19% 40%,#151034 41% 100%);box-shadow:0 0 0 1px rgba(201,167,255,.35),0 0 18px rgba(143,212,255,.25);overflow:hidden}
+.disc img{width:100%;height:100%;object-fit:cover;visibility:hidden;border-radius:50%}
+.disc::after{content:"";position:absolute;inset:40%;border-radius:50%;background:#05040d;box-shadow:0 0 0 2px rgba(255,217,138,.6)}
+.disc.spin{animation:spin 12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.np .t{flex:1;min-width:0}
+.np .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.np .t span{font-size:12px;color:var(--mut)}
+.pbar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin:10px 0 4px}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:linear-gradient(90deg,var(--acc) var(--p,0%),rgba(255,255,255,.12) var(--p,0%));outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 10px var(--acc),0 0 2px #fff}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;background:#fff;box-shadow:0 0 10px var(--acc)}
+.ctl{display:flex;justify-content:center;align-items:center;gap:34px;margin:4px 0 2px}
+.ctl button{background:none;border:none;color:rgba(241,238,255,.85);padding:6px;display:flex;align-items:center;justify-content:center;transition:transform .15s,color .2s}
+.ctl button:active{transform:scale(.9)}
+.ctl button svg{width:24px;height:24px}
+.ctl button.big{width:60px;height:60px;border-radius:50%;color:#fff;background:radial-gradient(circle at 50% 50%,rgba(201,167,255,.22),rgba(201,167,255,.04) 70%);box-shadow:inset 0 0 0 1.5px rgba(225,210,255,.75),0 0 22px rgba(150,115,255,.45),inset 0 0 14px rgba(201,167,255,.25)}
+.ctl button.big svg{width:26px;height:26px;filter:drop-shadow(0 0 6px rgba(201,167,255,.9))}
+.vol{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--mut);margin-top:8px;padding:0 2px}
+.vol button{background:none;border:none;color:rgba(200,190,240,.75);padding:4px;display:flex;flex:none}
+.vol button svg{width:18px;height:18px}
+.vol button#vmute svg{width:20px;height:20px}
+.vol b{min-width:24px;text-align:right;color:rgba(241,238,255,.8);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
+.ctl{gap:22px}
+.ctl button.side{color:rgba(190,180,235,.7);position:relative}
+.ctl button.side svg{width:20px;height:20px}
+.ctl button.side.on{color:var(--acc2);filter:drop-shadow(0 0 6px rgba(255,217,138,.7))}
+.ctl button.side small{position:absolute;right:-4px;bottom:-2px;font-size:9px;color:var(--acc2)}
+.sub{text-align:center;font-size:11px;color:var(--mut);min-height:14px;margin-top:2px;letter-spacing:.5px}
+.vol button.pill{border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11px;color:var(--mut);margin-left:2px}
+.vol button.pill.on{color:#fff;border-color:rgba(201,167,255,.7);box-shadow:0 0 10px rgba(160,120,255,.45);background:rgba(150,110,255,.25)}
+.toast{position:fixed;left:50%;bottom:200px;transform:translateX(-50%);background:rgba(43,37,80,.92);border:1px solid var(--line);color:var(--tx);padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;z-index:9;box-shadow:var(--glow)}
+.toast.on{opacity:1}
+.sheet{position:fixed;inset:0;background:rgba(3,2,10,.55);display:none;align-items:flex-end;justify-content:center;z-index:8;backdrop-filter:blur(3px)}
+.sheet.on{display:flex}
+.sheet .box{background:linear-gradient(170deg,rgba(40,30,90,.96),rgba(14,12,36,.98));border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:900px;padding:14px 12px calc(16px + env(safe-area-inset-bottom));max-height:75vh;overflow-y:auto}
+.sheet .box h3{margin:4px 8px 10px;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet .box button.it{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);color:var(--tx);padding:13px 10px;font-size:15px}
+.sheet .box button.it small{color:var(--mut);margin-left:6px}
+.job{border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin:8px 0;font-size:13px;background:var(--glass);backdrop-filter:blur(10px)}
+.job .nm{display:flex;gap:8px}.job .nm b{flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin:6px 0 4px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,#8a62ff,#c9a7ff);width:0;box-shadow:0 0 8px #c9a7ff}
+.prog.b i{background:linear-gradient(90deg,#8fd4ff,#ffd98a)}
+.job .sp{display:flex;justify-content:space-between;color:var(--mut);font-size:12px}
+.hint{color:var(--mut);font-size:12px;margin:8px 4px}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<header><h1>群星音乐</h1><span id="conn" style="font-size:12px;color:var(--mut)"><span class="dot"></span>连接中</span><button class="gear" id="gear" aria-label="设置"></button></header>
+<div class="tabs"><button data-t="lyrics" class="on">歌词</button><button data-t="lib">曲库</button><button data-t="pl">歌单</button><button data-t="queue">队列</button><button data-t="xfer">传输</button><button data-t="meta">整理</button></div>
+<main>
+  <section id="s-lyrics" class="on"><div id="lyr"><p class="note">还没有在播的歌。去「曲库」或「歌单」点一首</p></div></section>
+  <section id="s-lib"><div class="crumb" id="crumb"></div><div class="bar2" id="libbar"></div><div id="list" class="list"></div></section>
+  <section id="s-pl"><div id="plview"></div></section>
+  <section id="s-queue"><div class="bar2"><button class="btn sm" onclick="qClear()">清空队列（保留正在放的）</button></div><div id="qlist" class="list"></div></section>
+  <section id="s-meta"><div class="seg" id="mseg"><button class="btn sm on" data-k="missing">缺信息的歌</button><button class="btn sm" data-k="imports">新导入</button><button class="btn sm" data-k="dir">选文件夹</button><button class="btn sm" data-k="albums">专辑缺歌</button></div><div id="mview"></div></section>
+  <section id="s-xfer"><div class="crumb" id="fcrumb"></div><div class="bar2"><button class="btn pri" onclick="$('#upf').click()">⬆ 上传到这里</button><button class="btn" onclick="mkdir()">新建文件夹</button><button class="btn" onclick="fls()">刷新</button><input id="upf" type="file" multiple hidden></div>
+    <div id="jobs"></div><div id="flist" class="list"></div>
+    <p class="hint" id="xhint">传输经过电脑上的群星中转：这台设备 ⇄ 群星 ⇄ CA1000T。需要 CA1000T 开着 AK File Drop、不息屏。</p></section>
+</main>
+<footer>
+  <div class="np"><div class="disc" id="disc"><img id="art" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'"></div><div class="t"><b id="tt">—</b><span id="ta"></span></div></div>
+  <div class="pbar"><span id="cur">0:00</span><input id="seek" type="range" min="0" max="100" value="0" step="1"><span id="dur">0:00</span></div>
+  <div class="ctl"><button id="mode" class="side" aria-label="播放顺序"></button><button id="prev" aria-label="上一首"></button><button id="pp" class="big" aria-label="播放/暂停"></button><button id="next" aria-label="下一首"></button><button id="sleep" class="side" aria-label="睡眠定时"></button></div>
+  <div class="sub" id="subline"></div>
+  <div class="vol"><button id="vmute" aria-label="静音"></button><button id="vdn" aria-label="小声"></button><input id="vol" type="range" min="0" max="100" step="1"><button id="vup" aria-label="大声"></button><b id="volv">–</b><button id="loud" class="pill" aria-label="响度">响度</button></div>
+</footer>
+<div class="sheet" id="sheet" onclick="if(event.target===this)closeSheet()"><div class="box" id="sheetbox"></div></div>
+<div class="toast" id="toast"></div>
+<button class="lyrbtn hide" id="lyrbtn">换歌词</button>
+<div class="wcard" id="wcard"></div>
+<script>
+const QS = new URLSearchParams(location.search), K = QS.get('k') || '';
+if (QS.get('embed')) { document.documentElement.style.background = document.body.style.background = 'transparent'; document.body.classList.add('embed'); document.querySelector('header h1').style.visibility = 'hidden'; }
+const H = { 'Content-Type': 'application/json', 'X-Starry': '1' }; if (K) H['X-Starry-Token'] = K;
+const $ = s => document.querySelector(s);
+const APP = QS.get('app') === '1';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = t => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+const fsz = n => n >= 1e9 ? (n / 1e9).toFixed(2) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? Math.round(n / 1e3) + ' KB' : Math.round(n || 0) + ' B';
+const fsp = n => fsz(n) + '/s';
+const kq = u => K ? u + (u.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(K) : u;
+function toast(m) { const e = $('#toast'); e.textContent = m; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), 3200); }
+async function api(p, body) {
+  const r = await fetch(kq('/api/music/' + p), body ? { method: 'POST', headers: H, body: JSON.stringify(body) } : { headers: H });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || '出错了'); return j;
+}
+const art = u => u ? kq(u) : '';
+const artistOf = x => { const a = x && (x.artistS || T2Sc(x.artist)); return a && !/unknown/i.test(a) ? a : ''; };
+// App 里本地服务不做繁转简：页面自己转（日文有假名的不转）
+let T2Sc = s => s;
+if (APP) { const sc = document.createElement('script'); sc.src = kq('/opencc.js'); sc.onload = () => { try { const c = OpenCC.Converter({ from: 'tw', to: 'cn' }); T2Sc = s => (!s || (String(s).match(/[\u3040-\u30ff]/g) || []).length > 3) ? s : c(String(s)); if (LJ) drawLyrics(LJ); if (typeof render === 'function' && items && items.length) render(); } catch (e) {} }; document.head.appendChild(sc); }
+const T = x => x ? (x.titleS || T2Sc(x.title)) : '';
+
+
+/* ---------- 图标（SVG 线条风，跟着文字颜色走） ---------- */
+const SV = (inner, fill) => `<svg viewBox="0 0 24 24" fill="${fill ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+const IC = {
+  play: SV('<path d="M8.5 5.8v12.4a.6.6 0 0 0 .9.5l9.6-6.2a.6.6 0 0 0 0-1L9.4 5.3a.6.6 0 0 0-.9.5z" stroke="none"/>', 1),
+  pause: SV('<rect x="7" y="5.5" width="3.4" height="13" rx="1.3" stroke="none"/><rect x="13.6" y="5.5" width="3.4" height="13" rx="1.3" stroke="none"/>', 1),
+  prev: SV('<path d="M6.5 6v12"/><path d="M18 6.6v10.8a.5.5 0 0 1-.8.4L9.6 12.4a.5.5 0 0 1 0-.8l7.6-5.4a.5.5 0 0 1 .8.4z" fill="currentColor" stroke="none"/>'),
+  next: SV('<path d="M17.5 6v12"/><path d="M6 6.6v10.8a.5.5 0 0 0 .8.4l7.6-5.4a.5.5 0 0 0 0-.8L6.8 6.2a.5.5 0 0 0-.8.4z" fill="currentColor" stroke="none"/>'),
+  order: SV('<path d="M4 7h11M4 12h11M4 17h7"/><path d="M17 14.5l3 2.5-3 2.5"/><path d="M14 17h6"/>'),
+  loop: SV('<path d="M17 4.5l2.5 2.5L17 9.5"/><path d="M5 11V9.5A2.5 2.5 0 0 1 7.5 7h12"/><path d="M7 19.5L4.5 17 7 14.5"/><path d="M19 13v1.5a2.5 2.5 0 0 1-2.5 2.5h-12"/>'),
+  one: SV('<path d="M17 4.5l2.5 2.5L17 9.5"/><path d="M5 11V9.5A2.5 2.5 0 0 1 7.5 7h12"/><path d="M7 19.5L4.5 17 7 14.5"/><path d="M19 13v1.5a2.5 2.5 0 0 1-2.5 2.5h-12"/><path d="M11.2 10.6l1.3-.9v4.6"/>'),
+  shuffle: SV('<path d="M4 7h3.2c1.6 0 3 .8 3.9 2.1l1.8 2.8c.9 1.3 2.3 2.1 3.9 2.1H20"/><path d="M17.5 11.5L20 14l-2.5 2.5"/><path d="M4 17h3.2c1 0 1.9-.3 2.6-.9"/><path d="M14 8c.7-.6 1.6-1 2.6-1H20"/><path d="M17.5 4.5L20 7l-2.5 2.5"/>'),
+  moon: SV('<path d="M19.5 14.8A7.8 7.8 0 0 1 9.2 4.5a7.8 7.8 0 1 0 10.3 10.3z"/>'),
+  gear: SV('<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>'),
+  minus: SV('<path d="M7 12h10"/>'), plus: SV('<path d="M7 12h10M12 7v10"/>'),
+  vol0: SV('<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>'),
+  vol1: SV('<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.8a3.2 3.2 0 0 1 0 4.4"/>'),
+  vol2: SV('<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.8a3.2 3.2 0 0 1 0 4.4"/><path d="M18 7.3a6.8 6.8 0 0 1 0 9.4"/>'),
+};
+const volIcon = v => v ? (v < 50 ? IC.vol1 : IC.vol2) : IC.vol0;
+$('#prev').innerHTML = IC.prev; $('#next').innerHTML = IC.next; $('#pp').innerHTML = IC.play;
+$('#gear').innerHTML = IC.gear; $('#vdn').innerHTML = IC.minus; $('#vup').innerHTML = IC.plus; $('#vmute').innerHTML = IC.vol1;
+
+/* ---------- 标签页 ---------- */
+let curTab = 'lyrics';
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  curTab = b.dataset.t;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === 's-' + curTab));
+  if (curTab === 'queue') loadQueue();
+  if (curTab === 'lyrics') scrollLyr(true);
+  lyrBtn();
+  if (curTab === 'pl' && !plLoaded) plHome();
+  if (curTab === 'xfer' && !fLoaded) fls();
+  if (curTab === 'meta' && !mLoaded) mHome();
+});
+
+/* ---------- 操作菜单 ---------- */
+function sheet(title, opts) {
+  $('#sheetbox').innerHTML = `<h3>${esc(title)}</h3>` + opts.map((o, i) => `<button class="it" data-i="${i}">${esc(o[0])}${o[2] ? '<small>' + esc(o[2]) + '</small>' : ''}</button>`).join('') + '<button class="it" data-x="1" style="color:var(--mut)">取消</button>';
+  $('#sheetbox').querySelectorAll('button.it').forEach(b => b.onclick = () => { closeSheet(); if (!b.dataset.x) opts[+b.dataset.i][1](); });
+  $('#sheet').classList.add('on');
+}
+function closeSheet() { $('#sheet').classList.remove('on'); }
+function songMenu(x, list) {
+  sheet(T(x), [
+    ['▶ 播放', () => playList(list, list.indexOf(x))],
+    ['⤵ 下一首播放', () => api('qadd', { items: [x], mode: 'next' }).then(() => toast('已排到下一首')).catch(e => toast(e.message))],
+    ['＋ 加到队列末尾', () => api('qadd', { items: [x], mode: 'end' }).then(() => toast('已加到队列')).catch(e => toast(e.message))],
+    ['♫ 加到歌单…', () => pickPlaylist([x])],
+  ]);
+}
+async function pickPlaylist(list) {
+  let pls = [];
+  try { pls = (await api('pl/list')).items; } catch (e) { toast(e.message); }
+  sheet('加到哪个歌单' + (list.length > 1 ? `（${list.length} 首）` : ''), [
+    ...pls.map(p => [p.name, () => addTo(p.name, list)]),
+    ['＋ 新建歌单', () => { const n = prompt('新歌单名字'); if (n) addTo(n, list); }],
+  ]);
+}
+function addTo(name, list) {
+  toast('正在加到「' + name + '」…');
+  api('pl/add', { name, items: list }).then(r => {
+    toast(`加了 ${r.added} 首` + (r.dup ? `，${r.dup} 首本来就在` : '') + (r.miss && r.miss.length ? `，${r.miss.length} 首找不到文件（可能在存储卡上）` : '') + (r.pushed ? '' : '。' + r.err));
+    plLoaded = false; if (plCur === name) plOpen(name);
+  }).catch(e => toast(e.message));
+}
+function playList(list, i) {
+  api('play', { items: list, index: Math.max(0, i) }).then(s => { show(s); toast('开始播放：' + T(list[i] || {})); loadLyrics(true); }).catch(e => toast(e.message));
+}
+
+/* ---------- 曲库 ---------- */
+let path = [{ id: '0', title: 'CA1000T' }], items = [], total = 0;
+const NAMES = { SONGS: '全部歌曲', ALBUMS: '专辑', ARTISTS: '歌手', GENRES: '流派', PLAYLISTS: '机器上的歌单', FOLDER: '文件夹' };
+async function open(id, title, push = true) {
+  if (push) path.push({ id, title });
+  items = []; $('#list').innerHTML = '<p class="hint">加载中…</p>';
+  try { const j = await api('browse?id=' + encodeURIComponent(id) + '&start=0&count=100'); items = j.items; total = j.total; render(); }
+  catch (e) { $('#list').innerHTML = '<p style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+async function more() { const id = path[path.length - 1].id; const j = await api('browse?id=' + encodeURIComponent(id) + '&start=' + items.length + '&count=100'); items = items.concat(j.items); render(); }
+function render() {
+  $('#crumb').innerHTML = path.map((p, i) => i < path.length - 1 ? `<a href="#" data-i="${i}">${esc(NAMES[p.title] || p.title)}</a> ›` : `<span>${esc(NAMES[p.title] || p.title)}</span>`).join(' ');
+  $('#crumb').querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); path = path.slice(0, +a.dataset.i + 1); const p = path[path.length - 1]; open(p.id, p.title, false); });
+  const songs = items.filter(x => x.kind === 'song');
+  $('#libbar').innerHTML = songs.length ? `<button class="btn sm" id="lb1">▶ 全部播放（${songs.length}）</button><button class="btn sm" id="lb2">＋ 全部加到队列</button><button class="btn sm" id="lb3">♫ 全部加到歌单</button>` : '';
+  if (songs.length) { $('#lb1').onclick = () => playList(songs, 0); $('#lb2').onclick = () => api('qadd', { items: songs }).then(r => toast('加了 ' + r.added + ' 首')).catch(e => toast(e.message)); $('#lb3').onclick = () => pickPlaylist(songs); }
+  $('#list').innerHTML = items.map((x, i) => x.kind === 'dir'
+    ? `<div class="row" data-i="${i}"><span class="i">📁</span><div class="t"><b>${esc(NAMES[x.title] || T(x))}</b></div><span class="r">${x.count || ''}</span></div>`
+    : `<div class="row ${nowUrl === x.url ? 'playing' : ''}" data-i="${i}"><span class="i">${/dsf|dff/i.test(x.url) ? 'DSD' : '♪'}</span><div class="t"><b>${esc(T(x))}</b><span>${esc([artistOf(x), x.albumS || x.album].filter(Boolean).join(' · '))}</span></div><span class="r">${fmt(x.dur)}</span><button class="m" data-m="1" aria-label="更多">⋯</button></div>`).join('')
+    + (items.length < total ? '<button class="btn more" id="more">再加载 100 首（共 ' + total + '）</button>' : '');
+  $('#list').querySelectorAll('.row').forEach(r => r.onclick = e => {
+    const x = items[+r.dataset.i];
+    if (e.target.dataset.m) { e.stopPropagation(); return songMenu(x, songs); }
+    if (x.kind === 'dir') return open(x.id, x.titleS || x.title);
+    playList(songs, songs.indexOf(x));
+  });
+  const m = $('#more'); if (m) m.onclick = () => more().catch(e => toast(e.message));
+}
+
+/* ---------- 歌单（CA1000T 的 m3u，两边都能改） ---------- */
+let plLoaded = false, plCur = null, plData = null;
+async function plHome() {
+  plCur = null; $('#plview').innerHTML = '<p class="hint">读取歌单…</p>';
+  try {
+    const j = await api('pl/list'); plLoaded = true;
+    $('#plview').innerHTML = `<div class="bar2"><button class="btn pri" id="plnew">＋ 新建歌单</button><button class="btn" id="plref">刷新</button></div>`
+      + (j.online ? '' : `<p class="hint" style="color:var(--acc2)">CA1000T 的 File Drop 连不上，显示的是存在群星里的副本：${esc(j.err)}</p>`)
+      + (j.items.length ? '<div class="list">' + j.items.map((p, i) => `<div class="row" data-i="${i}"><span class="i">${p.auto ? '✦' : '♫'}</span><div class="t"><b>${esc(p.name)}</b><span>${p.auto ? '自动歌单，按听歌记录每天更新' : p.dirty ? '有改动还没同步到 CA1000T' : p.onCa === false ? '只在群星里' : '在 CA1000T 上'}</span></div>${p.auto ? '' : '<button class="m" data-m="1">⋯</button>'}</div>`).join('') + '</div>' : '<p class="hint">还没有歌单</p>')
+      + '<p class="hint">歌单存在 CA1000T 的 /Playlists 里（机器上也能看到），群星里同时留一份副本。在机器上改了，这里刷新就能看到；在这里改了会马上写回机器，连不上就等连上后自动补。</p>';
+    $('#plnew').onclick = plNew; $('#plref').onclick = plHome;
+    $('#plview').querySelectorAll('.row').forEach(r => r.onclick = e => {
+      const n = j.items[+r.dataset.i].name;
+      if (e.target.dataset.m) { e.stopPropagation(); return sheet(n, [['▶ 播放全部', () => api('pl/play', { name: n, i: 0 }).then(s => { show(s); loadLyrics(true); }).catch(er => toast(er.message))], ['✎ 改名', () => plRename(n)], ['🗑 删除歌单', () => plDel(n)]]); }
+      plOpen(n);
+    });
+  } catch (e) { $('#plview').innerHTML = '<p style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+async function plOpen(name) {
+  plCur = name; $('#plview').innerHTML = '<p class="hint">读取「' + esc(name) + '」…</p>';
+  try {
+    plData = await api('pl/get?name=' + encodeURIComponent(name)); plDraw();
+    if (plData.fast) api('pl/get?wait=1&name=' + encodeURIComponent(name)).then(j => {   // 先显示副本，再悄悄去 CA1000T 上核对
+      if (plCur !== name) return;
+      if (j.sig !== plData.sig || j.playable !== plData.playable) { plData = j; plDraw(); }
+      else if (j.err) { plData.err = j.err; plDraw(); }
+    }).catch(() => {});
+  }
+  catch (e) { $('#plview').innerHTML = `<div class="crumb"><a href="#" id="plback">歌单</a> › ${esc(name)}</div><p style="color:var(--bad)">${esc(e.message)}</p>`; $('#plback').onclick = ev => { ev.preventDefault(); plHome(); }; }
+}
+function plDraw() {
+  const d = plData, E = d.entries;
+  $('#plview').innerHTML = `<div class="crumb"><a href="#" id="plback">歌单</a> › <span>${esc(d.name)}</span></div>
+    <div class="bar2"><button class="btn pri" id="plplay">▶ 播放全部</button><button class="btn" id="plq">＋ 加到队列</button><button class="btn" id="plr">刷新</button></div>
+    <p class="hint">${d.note ? esc(d.note) + '。' : ''}${E.length} 首，${d.playable} 首能在这里播放${d.from === 'mirror' ? '（CA1000T 连不上，显示的是副本）' : ''}${d.dirty ? '，有改动等着同步' : ''}${d.err ? '。' + esc(d.err) : ''}</p>`
+    + '<div class="list">' + E.map((e, i) => `<div class="row ${e.item ? '' : 'dim'} ${e.item && e.item.url === nowUrl ? 'playing' : ''}" data-i="${i}"><span class="i">${i + 1}</span><div class="t"><b>${esc(e.item ? T(e.item) : e.file)}</b><span>${esc(e.item ? artistOf(e.item) : (e.sd ? '在存储卡上，曲库里没对上' : '曲库里没找到这个文件'))}</span></div><button class="m" data-m="1">⋯</button></div>`).join('') + '</div>';
+  $('#plback').onclick = e => { e.preventDefault(); plHome(); };
+  const playable = E.filter(e => e.item).map(e => e.item);
+  $('#plplay').onclick = () => playList(playable, 0);
+  $('#plq').onclick = () => api('qadd', { items: playable }).then(r => toast('加了 ' + r.added + ' 首')).catch(e => toast(e.message));
+  $('#plr').onclick = () => plOpen(d.name);
+  $('#plview').querySelectorAll('.row').forEach(r => r.onclick = ev => {
+    const i = +r.dataset.i, e = E[i];
+    if (ev.target.dataset.m) { ev.stopPropagation(); return sheet(e.item ? T(e.item) : e.file, [
+      ...(e.item ? [['▶ 从这首开始放', () => playList(playable, playable.indexOf(e.item))], ['⤵ 下一首播放', () => api('qadd', { items: [e.item], mode: 'next' }).then(() => toast('已排到下一首')).catch(er => toast(er.message))]] : []),
+      ['↑ 上移', () => plMove(i, i - 1)], ['↓ 下移', () => plMove(i, i + 1)], ['⇡ 移到最前', () => plMove(i, 0)],
+      ['✕ 从歌单里移除', () => plSave(E.filter((_, k) => k !== i).map(x => x.path), '已移除')]]); }
+    if (e.item) playList(playable, playable.indexOf(e.item)); else toast('这首在曲库里对不上，放不了');
+  });
+}
+function plMove(i, j) { const E = plData.entries; if (j < 0 || j >= E.length || i === j) return; const a = E.map(x => x.path); const [x] = a.splice(i, 1); a.splice(j, 0, x); plSave(a, '已调整顺序'); }
+function plSave(paths, msg) { api('pl/save', { name: plCur, paths }).then(r => { toast(r.pushed ? msg + '，已写回 CA1000T' : msg + '。' + r.err); plOpen(plCur); }).catch(e => toast(e.message)); }
+function plNew() { const n = prompt('新歌单名字'); if (!n) return; api('pl/save', { name: n, paths: [] }).then(r => { toast(r.pushed ? '建好了。去曲库里点歌曲右边的 ⋯ 加歌' : r.err); plHome(); }).catch(e => toast(e.message)); }
+function plRename(n) { const t = prompt('新名字', n); if (!t || t === n) return; api('pl/rename', { from: n, to: t }).then(() => { toast('已改名'); plHome(); }).catch(e => toast(e.message)); }
+function plDel(n) { if (!confirm('删除歌单「' + n + '」？（只删歌单，不删歌；群星里会留一份备份）')) return; api('pl/delete', { name: n }).then(r => { toast(r.err ? '群星里已删，CA1000T 上没删掉：' + r.err : '已删除'); plHome(); }).catch(e => toast(e.message)); }
+
+/* ---------- 队列 ---------- */
+async function loadQueue() {
+  try {
+    const j = await api('queue');
+    $('#qlist').innerHTML = j.items.length ? j.items.map((x, i) => `<div class="row ${i === j.pos ? 'playing' : ''}" data-i="${i}"><span class="i">${i === j.pos ? '▶' : i + 1}</span><div class="t"><b>${esc(x.title)}</b><span>${esc(artistOf(x))}</span></div><span class="r">${fmt(x.dur)}</span><button class="m" data-m="1">⋯</button></div>`).join('') : '<p class="hint">队列是空的。在曲库或歌单里点歌，或者点 ⋯ →「加到队列」</p>';
+    $('#qlist').querySelectorAll('.row').forEach(r => r.onclick = e => {
+      const i = +r.dataset.i;
+      if (e.target.dataset.m) { e.stopPropagation(); return sheet(j.items[i].title, [
+        ['▶ 现在放这首', () => qJump(i)],
+        ['↑ 上移', () => qMove(i, i - 1)], ['↓ 下移', () => qMove(i, i + 1)],
+        ['⤵ 放到下一首', () => qMove(i, i > j.pos ? j.pos + 1 : j.pos)],
+        ['✕ 从队列移除', () => api('qremove', { i }).then(loadQueue).catch(er => toast(er.message))]]); }
+      qJump(i);
+    });
+  } catch (e) { toast(e.message); }
+}
+function qJump(i) { api('jump', { i }).then(s => { show(s); loadLyrics(true); loadQueue(); }).catch(e => toast(e.message)); }
+function qMove(i, j) { api('qmove', { i, j }).then(loadQueue).catch(e => toast(e.message)); }
+function qClear() { api('qclear', {}).then(loadQueue).catch(e => toast(e.message)); }
+
+/* ---------- 传输（CA1000T ⇄ 这台设备） ---------- */
+let fdir = '/', fLoaded = false;
+async function fls(d) {
+  if (typeof d === 'string') fdir = d; fLoaded = true;
+  const parts = fdir.split('/').filter(Boolean);
+  $('#fcrumb').innerHTML = `<a href="#" data-p="/">CA1000T</a>` + parts.map((p, i) => ` › <a href="#" data-p="${esc('/' + parts.slice(0, i + 1).join('/'))}">${esc(p)}</a>`).join('');
+  $('#fcrumb').querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); fls(a.dataset.p); });
+  $('#flist').innerHTML = '<p class="hint">读取中…</p>';
+  try {
+    const j = await api('ftp/ls?dir=' + encodeURIComponent(fdir));
+    $('#flist').innerHTML = j.items.length ? j.items.map((x, i) => `<div class="row" data-i="${i}"><span class="i">${x.dir ? '📁' : '📄'}</span><div class="t"><b>${esc(x.name)}</b>${x.dir ? '' : '<span>' + fsz(x.size) + ' · 点一下下载到这台设备</span>'}</div>${x.dir ? '' : '<span class="r">⬇</span>'}</div>`).join('') : '<p class="hint">空文件夹</p>';
+    $('#flist').querySelectorAll('.row').forEach(r => r.onclick = () => { const x = j.items[+r.dataset.i]; const p = (fdir === '/' ? '' : fdir) + '/' + x.name; if (x.dir) fls(p); else download(p, x.size); });
+  } catch (e) { $('#flist').innerHTML = '<p style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+function mkdir() { const n = prompt('新文件夹名字'); if (!n) return; fetch(kq('/api/music/ftp/mkdir?dir=' + encodeURIComponent((fdir === '/' ? '' : fdir) + '/' + n)), { method: 'POST', headers: H }).then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error); fls(); }).catch(e => toast(e.message)); }
+
+// 这台设备这一段的进度（上传：设备 → 群星；下载：群星 → 设备），群星那一段（群星 ⇄ CA1000T）从 /ftp/jobs 拿
+const local = new Map();
+function jobRow(id) { let el = document.getElementById('job-' + id); if (!el) { el = document.createElement('div'); el.className = 'job'; el.id = 'job-' + id; $('#jobs').prepend(el); } return el; }
+function drawJob(id) {
+  const L = local.get(id); if (!L) return; const Sv = L.srv || {}, up = L.kind === 'up';
+  const tot = L.total || Sv.total || 0;
+  let pa = tot ? Math.min(100, 100 * L.done / tot) : 0, pb = tot ? Math.min(100, 100 * (Sv.done || 0) / tot) : 0;
+  const fin = L.fin && (!up || Sv.state === 'done' || Sv.state === 'err' || L.err);
+  if (L.app) pa = pb;
+  if (fin && !L.err && !Sv.err) { pa = 100; pb = 100; }
+  const state = (L.err || Sv.err) ? '<span style="color:var(--bad)">失败：' + esc(L.err || Sv.err) + '</span>' : fin ? '<span style="color:var(--ok)">完成</span>' : '进行中';
+  const el = (L.t1 || Date.now()) - L.t0;
+  jobRow(id).innerHTML = `<div class="nm"><span>${up ? '⬆' : '⬇'}</span><b>${esc(L.name)}</b><span>${fsz(tot)}</span></div>
+    <div class="sp"><span>${up ? '上传：这台设备 → ' + (APP ? 'App' : '群星') : '下载：' + (APP ? 'App → 下载/群星音乐' : '群星 → 这台设备')}</span><span>${fin ? '' : fsp(L.speed || 0) + ' · '}${pa.toFixed(0)}%</span></div><div class="prog"><i style="width:${pa}%"></i></div>
+    <div class="sp"><span>${up ? (APP ? 'App' : '群星') + ' → CA1000T' : 'CA1000T → ' + (APP ? 'App' : '群星')}</span><span>${fin ? '' : fsp(Sv.speed || 0) + ' · '}${pb.toFixed(0)}%</span></div><div class="prog b"><i style="width:${pb}%"></i></div>
+    <div class="sp"><span>${state}</span><span>用时 ${(el / 1000).toFixed(1)} 秒 · 平均 ${fsp(L.done / Math.max(.001, el / 1000))}</span></div>`;
+}
+function speedTick(L, done) { const t = Date.now(); L.win = L.win || []; L.win.push([t, done]); while (L.win.length > 2 && t - L.win[0][0] > 2000) L.win.shift(); const a = L.win[0]; L.speed = t > a[0] ? (done - a[1]) / ((t - a[0]) / 1000) : 0; L.done = done; }
+$('#upf').onchange = () => { const fs = [...$('#upf').files]; $('#upf').value = ''; (async () => {
+  const before = recentUp.length; for (const f of fs) await upload(f);
+  const n = recentUp.length - before;
+  if (n > 0) sheet('刚传上去 ' + n + ' 首歌', [['✦ 现在补全歌名、歌手、专辑和封面', () => { mKind = 'imports'; goTab('meta'); mHome(); }, '可以先看改前改后再决定'], ['以后再说', () => {}]]);
+})(); };
+function upload(f) {
+  return new Promise(ok => {
+    const id = 'u' + Date.now() + Math.random().toString(36).slice(2, 6), dir = fdir;
+    const L = { kind: 'up', name: f.name, total: f.size, done: 0, t0: Date.now() }; local.set(id, L); drawJob(id);
+    const x = new XMLHttpRequest();
+    x.open('POST', kq('/api/music/ftp/upload?dir=' + encodeURIComponent(dir) + '&name=' + encodeURIComponent(f.name) + '&id=' + id));
+    for (const [k, v] of Object.entries(H)) if (k !== 'Content-Type') x.setRequestHeader(k, v);
+    x.setRequestHeader('Content-Type', 'application/octet-stream');
+    x.upload.onprogress = e => { speedTick(L, e.loaded); drawJob(id); };
+    x.onload = () => { L.fin = true; L.t1 = Date.now(); L.done = f.size; try { const j = JSON.parse(x.responseText); if (!j.ok) L.err = j.error; if (j.job) L.srv = j.job; if (j.ok && /\.(flac|mp3|m4a|ogg|wav|aac|ape|dsf|dff|wma)$/i.test(f.name)) recentUp.push(MPRE + (dir === '/' ? '' : dir) + '/' + f.name); } catch (e) { L.err = '群星回复看不懂'; } drawJob(id); if (fdir === dir) fls(); ok(); };
+    x.onerror = () => { L.fin = true; L.t1 = Date.now(); L.err = '网络出错'; drawJob(id); ok(); };
+    x.send(f);
+  });
+}
+async function download(p, size, again) {
+  if (APP) return saveApp(p, size);
+  const id = 'd' + Date.now() + Math.random().toString(36).slice(2, 6), name = p.split('/').pop();
+  const L = { kind: 'down', name, total: size, done: 0, t0: Date.now(), retried: !!again }; local.set(id, L); drawJob(id);
+  try {
+    const r = await fetch(kq('/api/music/ftp/download?path=' + encodeURIComponent(p) + '&id=' + id), { headers: H });
+    if (!r.ok) { let m = '下载失败'; try { m = (await r.json()).error; } catch (e) {} throw new Error(m); }
+    const rd = r.body.getReader(), parts = []; let n = 0, last = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); n += value.length; speedTick(L, n); if (Date.now() - last > 200) { last = Date.now(); drawJob(id); } }
+    L.fin = true; L.t1 = Date.now(); drawJob(id);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(parts)); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  } catch (e) {
+    if (!L.retried) { L.retried = true; L.done = 0; L.win = []; toast('下载断了，2 秒后自动重试一次'); await new Promise(r => setTimeout(r, 2000)); local.delete(id); const el = document.getElementById('job-' + id); if (el) el.remove(); return download(p, size, true); }
+    L.fin = true; L.t1 = Date.now(); L.err = (/NetworkError|Failed to fetch|network/i.test(e.message) ? '连接中断（' + e.message + '）' : e.message); drawJob(id);
+  }
+}
+// App 里：直接从 CA1000T 存到手机「下载/群星音乐」
+async function saveApp(p, size) {
+  const id = 'd' + Date.now() + Math.random().toString(36).slice(2, 6), name = p.split('/').pop();
+  const L = { kind: 'down', app: true, name, total: size, done: 0, t0: Date.now() }; local.set(id, L); drawJob(id);
+  try { const r = await api('ftp/save?path=' + encodeURIComponent(p) + '&id=' + id); L.srv = r.job; L.fin = true; L.t1 = Date.now(); L.done = size; drawJob(id); toast('已存到 ' + r.saved); }
+  catch (e) { L.fin = true; L.t1 = Date.now(); L.err = e.message; drawJob(id); }
+}
+if (APP) $('#xhint').textContent = '手机直接和 CA1000T 互传，不经过电脑。下载的文件存到「下载/群星音乐」；在别的 App 里「分享 → 传到播放器」也能传上去。需要 CA1000T 开着 AK File Drop、不息屏。';
+setInterval(async () => {
+  const run = [...local.values()].some(L => !L.fin || (L.kind === 'up' && (!L.srv || L.srv.state === 'run')));
+  if (!run) return;
+  try { const j = await api('ftp/jobs'); for (const s of j.items) { const L = local.get(s.id); if (L) { L.srv = s; drawJob(s.id); } } } catch (e) {}
+}, 700);
+
+/* ---------- 歌词 ---------- */
+let lines = [], synced = false, lyrFor = '', nowUrl = '', S = null, base = 0, baseAt = 0, dragging = false, lastIdx = -1;
+function parseLrc(t) {
+  const out = [];
+  for (const ln of String(t).split(/\r?\n/)) { const ts = [...ln.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]; const txt = ln.replace(/\[[^\]]*\]/g, '').trim(); for (const m of ts) out.push({ t: +m[1] * 60 + +m[2], txt }); }
+  return out.sort((a, b) => a.t - b.t);
+}
+let LJ = null, SET = { wordTap: true, showTrans: true, autoLists: true }, VOCAB = false;
+api('settings').then(j => { SET = j.settings; VOCAB = j.vocab; }).catch(() => {});
+function lyrBtn() { $('#lyrbtn').classList.toggle('hide', curTab !== 'lyrics' || !(S && S.cur)); }
+const hasEn = t => /[A-Za-z]{2,}/.test(t);
+// 英文单词包成可点的小块（开关在设置里）
+function wordsHtml(t) { if (!SET.wordTap || !hasEn(t)) return esc(t); return esc(t).replace(/[A-Za-z][A-Za-z'’\-]*[A-Za-z]|[A-Za-z]/g, w => w.length > 1 ? `<span class="w">${w}</span>` : w); }
+function transMap(tr) { const m = new Map(); for (const l of parseLrc(tr || '')) if (l.txt) m.set(l.t.toFixed(2), l.txt); return m; }
+async function loadLyrics(force) {
+  if (!S || !S.cur) return;
+  if (!force && lyrFor === S.cur.url) return;
+  lyrFor = S.cur.url; lines = []; synced = false; LJ = null; $('#lyr').innerHTML = '<p class="note">正在找歌词…</p>'; lyrBtn();
+  try {
+    const j = await api('lyrics');
+    if (lyrFor !== (S.cur && S.cur.url)) return;
+    drawLyrics(j);
+  } catch (e) { $('#lyr').innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
+}
+function drawLyrics(j) {
+  LJ = j; lines = []; synced = false;
+  if (j.needT2S) j = Object.assign({}, j, { text: T2Sc(j.text || ''), trans: T2Sc(j.trans || '') });
+  const fix = '<br><button class="btn sm" style="margin-top:12px" onclick="lyrSearch()">自己搜歌词</button>';
+  if (j.hidden) { $('#lyr').innerHTML = '<p class="note">这首设成了不显示歌词' + fix.replace('自己搜歌词', '换一个 / 恢复') + '</p>'; return; }
+  if (!j.found) { $('#lyr').innerHTML = `<p class="note">没找到这首的歌词<br><small>${esc(j.q ? (j.q.artist ? j.q.artist + ' - ' : '') + j.q.title : '')}</small>${j.err ? '<br><small>' + esc(j.err) + '</small>' : ''}${fix}</p>`; return; }
+  if (j.instrumental && !j.text) { $('#lyr').innerHTML = '<p class="note">纯音乐，请欣赏</p>'; return; }
+  synced = j.synced;
+  lines = synced ? parseLrc(j.text) : j.text.split(/\r?\n/).map(t => ({ t: -1, txt: t.trim() }));
+  const TM = SET.showTrans && j.trans ? transMap(j.trans) : null;
+  $('#lyr').innerHTML = lines.map((l, i) => { const tr = TM && TM.get(l.t.toFixed(2)); return `<p data-i="${i}">${wordsHtml(l.txt) || '&nbsp;'}${tr && tr !== l.txt ? '<span class="tr">' + esc(tr) + '</span>' : ''}</p>`; }).join('')
+    + `<p class="note" style="font-size:11px">${synced ? '' : '（这首只有不带时间的歌词）'}来源：${esc(j.src)}${j.chosen ? '（你选的）' : ''}${j.approx ? ` · 这一版和你的文件时长差 ${Math.abs(j.approx)} 秒，时间轴可能对不上，可以点右上角「换歌词」` : ''}${SET.wordTap && hasEn(j.text) ? ' · 点英文单词查释义' : ''}</p>`;
+  $('#lyr').querySelectorAll('p[data-i]').forEach(p => p.onclick = ev => {
+    const w = ev.target.closest('.w'); if (w) { ev.stopPropagation(); return wordTap(w, lines[+p.dataset.i].txt); }
+    if (synced) seek(lines[+p.dataset.i].t);
+  });
+  lastIdx = -1; scrollLyr(true);
+}
+$('#lyrbtn').onclick = () => lyrSearch();
+async function lyrSearch(t, a) {
+  const q = (LJ && LJ.q) || {}; t = t != null ? t : (q.title || ''); a = a != null ? a : (q.artist || '');
+  $('#sheetbox').innerHTML = `<h3>换歌词：${esc(S && S.cur ? T(S.cur) : '')}</h3><div class="lsr"><input id="lst" placeholder="歌名" value="${esc(t)}"><input id="lsa" placeholder="歌手（可空）" value="${esc(a)}"><button class="btn pri" id="lsgo">搜</button></div><div id="lsres"><p class="hint">在 LRCLIB 和网易云里一起搜…</p></div>
+    <button class="it" id="lsauto">↺ 恢复自动匹配</button><button class="it" id="lsnone">这首不显示歌词（纯音乐等）</button><button class="it" data-x="1" style="color:var(--mut)" onclick="closeSheet()">关闭</button>`;
+  $('#sheet').classList.add('on');
+  const use = b => api('lyrics/use', b).then(j => { closeSheet(); drawLyrics(j); toast(b.auto ? '已恢复自动匹配' : b.none ? '这首以后不显示歌词' : '已换成这一版，以后放这首都用它'); }).catch(e => toast(e.message));
+  $('#lsauto').onclick = () => use({ auto: true }); $('#lsnone').onclick = () => use({ none: true });
+  $('#lsgo').onclick = () => lyrSearch($('#lst').value.trim(), $('#lsa').value.trim());
+  try {
+    const d = S && S.cur ? Math.round(S.dur || 0) : 0;
+    const r = await api('lyrics/search?title=' + encodeURIComponent(t) + '&artist=' + encodeURIComponent(a) + '&dur=' + d);
+    const L = r.items.slice(0, 30);
+    $('#lsres').innerHTML = (L.length ? L.map((c, i) => `<button class="it" data-i="${i}">${esc(c.title)} <small>${esc(c.artist || '')}${c.album ? ' · ' + esc(c.album) : ''} · ${fmt(c.dur)}${d && Math.abs(c.dur - d) <= 3 ? ' ✓时长对得上' : ''} · ${c.src === '163' ? '网易云' : 'LRCLIB'}${c.synced === true ? ' · 逐行同步' : c.synced === false ? ' · 无时间轴' : ''}${c.instrumental ? ' · 纯音乐' : ''}</small></button>`).join('') : '<p class="hint">两个来源都没搜到，换个写法试试（比如只写歌名）</p>') + (r.err ? '<p class="hint">' + esc(r.err) + '</p>' : '');
+    $('#lsres').querySelectorAll('button.it').forEach(b => b.onclick = () => { const c = L[+b.dataset.i]; use({ src: c.src, id: c.id }); });
+  } catch (e) { $('#lsres').innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+async function wordTap(el, line) {
+  document.querySelectorAll('#lyr .w.hit').forEach(x => x.classList.remove('hit')); el.classList.add('hit');
+  const w = el.textContent.replace(/’/g, "'").replace(/'s$/i, ''), C = $('#wcard');
+  C.innerHTML = `<h4>${esc(w)}</h4><div class="zh">查询中…</div>`; C.classList.add('on');
+  try {
+    const r = await api('word/lookup?w=' + encodeURIComponent(w));
+    C.innerHTML = `<h4>${esc(r.word)}<span class="ph">${r.ph ? '/' + esc(r.ph) + '/' : ''}${r.lemma ? ' 原形 ' + esc(r.lemma) : ''}</span></h4><div class="zh">${esc(r.zh || '没查到释义')}${r.lemmaZh ? '\n' + esc(r.lemma) + '：' + esc(r.lemmaZh) : ''}</div>
+      <div class="acts"><span class="hint" style="flex:1;margin:0">${esc(r.from || '')}</span><button class="btn" id="wx">关闭</button><button class="btn pri" id="wadd">＋ 生词本</button></div>`;
+    $('#wx').onclick = wClose;
+    $('#wadd').onclick = () => api('word/add', { word: r.lemma && !r.zh ? r.lemma : r.word, context: line, zh: r.zh }).then(x => { toast((x.added === false ? '已经在' : '已加进') + (x.to || '生词本') + '：' + r.word); wClose(); }).catch(e => toast(e.message));
+  } catch (e) { C.innerHTML = `<h4>${esc(w)}</h4><div class="zh">${esc(e.message)}</div><div class="acts"><button class="btn" onclick="wClose()">关闭</button></div>`; }
+}
+function wClose() { $('#wcard').classList.remove('on'); document.querySelectorAll('#lyr .w.hit').forEach(x => x.classList.remove('hit')); }
+$('#s-lyrics').addEventListener('scroll', () => {}, { passive: true });
+document.addEventListener('click', e => { if ($('#wcard').classList.contains('on') && !e.target.closest('#wcard') && !e.target.closest('.w')) wClose(); });
+/* ---------- 整理：补全歌曲信息、专辑缺歌 ---------- */
+const MPRE = '/storage/emulated/0';
+let recentUp = [], mLoaded = false, mKind = 'missing', mDir = '/Music/待分类', mItems = [], mSel = new Set(), mProp = null, mPoll = null;
+function goTab(t) { const b = document.querySelector('.tabs button[data-t="' + t + '"]'); if (b) b.click(); }
+document.querySelectorAll('#mseg button').forEach(b => b.onclick = () => { mKind = b.dataset.k; mHome(); });
+const shortP = p => String(p).replace(MPRE + '/Music/', '').replace(MPRE, '');
+async function mHome() {
+  mLoaded = true; mProp = null; document.querySelectorAll('#mseg button').forEach(b => b.classList.toggle('on', b.dataset.k === mKind));
+  const V = $('#mview');
+  if (mKind === 'albums') return mAlbums();
+  if (mKind === 'dir') {
+    V.innerHTML = `<div class="lsr"><input id="mdir" value="${esc(mDir)}"><button class="btn" id="mdirgo">列出</button></div><p class="hint">播放器上的文件夹，比如 /Music/待分类、/Music/纯音乐</p><div id="mlist"></div>`;
+    $('#mdirgo').onclick = () => { mDir = $('#mdir').value.trim() || '/'; mLoad(); };
+  } else V.innerHTML = '<div id="mlist"></div>';
+  mLoad();
+}
+async function mLoad() {
+  const box = $('#mlist'); box.innerHTML = '<p class="hint">读取中…（第一次要等曲库索引）</p>'; mSel.clear();
+  try {
+    let items;
+    if (mKind === 'imports') {
+      const j = await api('meta/list?kind=imports').catch(() => ({ items: [] }));
+      const seen = new Set(); items = [];
+      for (const p of recentUp.slice().reverse().concat(j.items.map(x => x.path))) if (!seen.has(p)) { seen.add(p); const x = j.items.find(y => y.path === p); items.push(x || { path: p, cur: { title: p.split('/').pop(), artist: '' }, problems: ['还没扫描进曲库'], writable: /\.(flac|mp3|m4a|ogg|wav)$/i.test(p) }); }
+    } else items = (await api('meta/list?kind=' + mKind + (mKind === 'dir' ? '&dir=' + encodeURIComponent(mDir) : ''))).items;
+    mItems = items;
+    if (!items.length) { box.innerHTML = '<p class="hint">' + (mKind === 'missing' ? '没有缺信息的歌了 ✦' : mKind === 'imports' ? '这次还没传过歌。在「传输」里上传，传完会提示补全' : '这个文件夹里没有歌') + '</p>'; return; }
+    for (const x of items) if (x.writable !== false && (mKind !== 'missing' || x.problems.length)) mSel.add(x.path);
+    if (items.length > 30 && mKind === 'missing') { mSel.clear(); items.slice(0, 30).forEach(x => x.writable !== false && mSel.add(x.path)); }
+    mDrawList();
+  } catch (e) { box.innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+function mDrawList() {
+  const box = $('#mlist');
+  box.innerHTML = '<div class="list">' + mItems.map((x, i) => `<label class="row" data-i="${i}" style="cursor:pointer"><input type="checkbox" class="ck" ${mSel.has(x.path) ? 'checked' : ''} ${x.writable === false ? 'disabled' : ''}><div class="t"><b>${esc(T2Sc(x.cur.title || x.path.split('/').pop()))}</b><span>${esc(T2Sc(x.cur.artist || '（没有歌手）'))}${x.cur.album ? ' · ' + esc(T2Sc(x.cur.album)) : ''} · ${esc(shortP(x.path))}</span><div>${(x.problems || []).map(p => '<span class="chip">' + esc(p) + '</span>').join('')}${x.applied ? '<span class="chip ok">已写入，等机器更新曲库</span>' : ''}${x.writable === false ? '<span class="chip lo">这种格式不能写</span>' : ''}</div></div></label>`).join('') + '</div>'
+    + `<div class="mbar"><button class="btn sm" id="mall">全选</button><button class="btn sm" id="mnone">全不选</button><span id="msel"></span><button class="btn pri" id="mgo">查找信息</button></div>`;
+  const upd = () => { $('#msel').textContent = '选了 ' + mSel.size + ' / ' + mItems.length + ' 首' + (mSel.size > 60 ? '（一次最多查 60 首）' : ''); };
+  box.querySelectorAll('.row').forEach(r => r.querySelector('input').onchange = e => { const p = mItems[+r.dataset.i].path; e.target.checked ? mSel.add(p) : mSel.delete(p); upd(); });
+  $('#mall').onclick = () => { mItems.forEach(x => x.writable !== false && mSel.add(x.path)); mDrawList(); };
+  $('#mnone').onclick = () => { mSel.clear(); mDrawList(); };
+  $('#mgo').onclick = () => mPropose([...mSel].slice(0, 60));
+  upd();
+}
+const CONF = { high: ['把握大', 'ok'], mid: ['大概是', ''], low: ['拿不准，没改', 'lo'], none: ['没查到', 'lo'] };
+async function mPropose(paths) {
+  if (!paths.length) return toast('先勾选要整理的歌');
+  const V = $('#mview'); V.innerHTML = `<p class="hint">正在网易云和 Apple Music 里查 ${paths.length} 首…（每首 1~2 秒）</p>`;
+  try {
+    const j = await api('meta/propose', { paths }); mProp = j.items.filter(Boolean);
+    mProp.forEach(x => { x.on = x.conf === 'high' && x.writable !== false && mChanged(x).length > 0; });
+    mDrawProp();
+  } catch (e) { V.innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p><button class="btn" onclick="mHome()">返回</button>'; }
+}
+const FIELDS = [['title', '歌名'], ['artist', '歌手'], ['album', '专辑'], ['track', '曲序'], ['year', '年份']];
+function mChanged(x) { const c = x.cur || {}, n = x.proposed || {}; const L = FIELDS.filter(([k]) => n[k] && String(n[k]) !== String(c[k] || '')).map(([k]) => k); if (n.cover) L.push('cover'); return L; }
+function mDrawProp() {
+  const V = $('#mview'), P = mProp;
+  V.innerHTML = `<div class="bar2"><button class="btn sm" id="mback">‹ 返回列表</button><button class="btn sm" id="mallp">勾选全部有改动的</button></div>
+    <p class="hint">红色划掉的是现在的，绿色是改成的。点绿色可以改字；点「换一个」看别的版本。默认只勾了把握大的。</p>`
+    + P.map((x, i) => { const c = x.cur || {}, n = x.proposed || {}, ch = mChanged(x), cf = CONF[x.conf] || CONF.none;
+      return `<div class="mcard" data-i="${i}"><input type="checkbox" class="ck" ${x.on ? 'checked' : ''} ${x.writable === false || !ch.length ? 'disabled' : ''}>
+        <div class="cv">${c.art ? `<img src="${esc(art(c.art))}" alt="">` : '<span></span>'}${n.cover ? `<i>→</i><img src="${esc(n.cover)}" alt="" referrerpolicy="no-referrer">` : ''}</div>
+        <div class="fx"><div class="fn">${esc(shortP(x.path))}</div><div><span class="chip ${cf[1]}">${cf[0]}</span>${n.src ? '<span class="chip ok">' + (n.src === '163' ? '网易云' : 'Apple Music') + '</span>' : ''}${x.err ? '<span class="chip lo">' + esc(x.err) + '</span>' : ''}</div>
+        <div class="dl">${FIELDS.map(([k, t]) => { const a = String(c[k] || ''), b = String(n[k] || ''); if (!a && !b) return ''; return `<b>${t}</b><div class="v">${b && b !== a ? (a ? '<del>' + esc(T2Sc(a)) + '</del>' : '') + `<ins data-k="${k}">${esc(b)}</ins>` : `<span class="same" data-k="${k}">${esc(T2Sc(a))}</span>`}</div>`; }).join('')}${n.cover ? '<b>封面</b><div class="v"><ins>换成新封面</ins></div>' : ''}</div>
+        <div class="bar2" style="margin:6px 0 0"><button class="btn sm" data-a="alt">换一个</button>${n.cover ? '<button class="btn sm" data-a="nocover">不要封面</button>' : ''}<button class="btn sm" data-a="keep">保留原样</button></div></div></div>`; }).join('')
+    + `<div class="mbar"><span id="mcount"></span><button class="btn pri" id="mapply">写入选中的</button></div>`;
+  const cnt = () => { const on = P.filter(x => x.on); $('#mcount').textContent = '勾了 ' + on.length + ' 首'; };
+  $('#mback').onclick = () => { mProp = null; mHome(); };
+  $('#mallp').onclick = () => { P.forEach(x => { if (x.writable !== false && mChanged(x).length) x.on = true; }); mDrawProp(); };
+  V.querySelectorAll('.mcard').forEach(el => {
+    const x = P[+el.dataset.i];
+    el.querySelector('input').onchange = e => { x.on = e.target.checked; cnt(); };
+    el.querySelectorAll('ins[data-k],.same[data-k]').forEach(f => f.onclick = () => { const k = f.dataset.k; const v = prompt('改成：', (x.proposed || {})[k] || (x.cur || {})[k] || ''); if (v == null) return; x.proposed = Object.assign({}, x.proposed, { [k]: k === 'track' || k === 'year' ? (+v || 0) : v.trim() }); x.on = true; mDrawProp(); });
+    el.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => {
+      const a = b.dataset.a;
+      if (a === 'keep') { x.proposed = { title: '', artist: '', album: '', track: 0, year: 0, cover: '' }; x.on = false; mDrawProp(); }
+      else if (a === 'nocover') { x.proposed = Object.assign({}, x.proposed, { cover: '' }); mDrawProp(); }
+      else mAlt(x);
+    });
+  });
+  $('#mapply').onclick = mApplyAsk; cnt();
+}
+function propFrom(x, c) {
+  const S2 = T2Sc, keep = String((x.cur || {}).title || '').replace(/\.(flac|mp3|m4a|ogg|wav|aac)$/i, '').replace(/^\s*\d{1,3}\s*[.\-_、 ]\s*/, '');
+  return { title: S2(c.title), artist: S2(c.artist).split(/\s*&\s*/).slice(0, 3).join(' & '), album: S2(c.album || '').replace(/ - (Single|EP)$/, ''), track: c.track || 0, year: c.year || 0, cover: c.cover || '', src: c.src, srcId: c.id };
+}
+async function mAlt(x) {
+  const draw = (L, err) => {
+    $('#sheetbox').innerHTML = `<h3>换一个：${esc(T2Sc((x.cur || {}).title || ''))}</h3><div class="lsr"><input id="mat" value="${esc(x.q ? x.q.title : '')}" placeholder="歌名"><input id="maa" value="${esc(x.q ? x.q.artist : '')}" placeholder="歌手"><button class="btn pri" id="mago">搜</button></div>`
+      + (L.length ? L.map((c, i) => `<button class="it" data-i="${i}" style="display:flex;gap:10px;align-items:center">${c.cover ? `<img src="${esc(c.cover)}" referrerpolicy="no-referrer" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex:none">` : ''}<span style="min-width:0">${esc(c.title)}<small>${esc(c.artist)} · ${esc(c.album || '')}${c.year ? ' · ' + c.year : ''}${c.dur ? ' · ' + fmt(c.dur) : ''}${x.cur && x.cur.dur && c.dur && Math.abs(c.dur - x.cur.dur) <= 3 ? ' ✓时长对得上' : ''} · ${c.src === '163' ? '网易云' : 'Apple Music'}</small></span></button>`).join('') : '<p class="hint">' + (err || '没搜到，换个写法试试') + '</p>')
+      + '<button class="it" data-x="1" style="color:var(--mut)" onclick="closeSheet()">关闭</button>';
+    $('#sheet').classList.add('on');
+    $('#sheetbox').querySelectorAll('button.it[data-i]').forEach(b => b.onclick = () => { x.proposed = propFrom(x, L[+b.dataset.i]); x.on = true; x.conf = 'high'; closeSheet(); mDrawProp(); });
+    $('#mago').onclick = () => api('meta/search?title=' + encodeURIComponent($('#mat').value.trim()) + '&artist=' + encodeURIComponent($('#maa').value.trim())).then(j => draw(j.items)).catch(e => draw([], e.message));
+  };
+  draw(x.cands || []);
+}
+function mApplyAsk() {
+  const on = mProp.filter(x => x.on && x.writable !== false); if (!on.length) return toast('还没勾选要写入的歌');
+  const c = { title: 0, artist: 0, album: 0, cover: 0, track: 0, year: 0 }; let bytes = 0;
+  on.forEach(x => { mChanged(x).forEach(k => c[k]++); bytes += (x.cur && x.cur.size) || 30e6; });
+  const min = Math.max(1, Math.round(bytes * 2 / 2e6 / 60));
+  sheet(`写入 ${on.length} 首`, [[`✦ 开始写入（约 ${min} 分钟）`, mApply, `歌名 ${c.title} · 歌手 ${c.artist} · 专辑 ${c.album} · 封面 ${c.cover} · 曲序/年份 ${c.track + c.year}。每首会下载、改信息、确认音乐数据没变再传回；原来的信息留底可以还原。期间 CA1000T 要亮屏、开着 File Drop`]]);
+}
+async function mApply() {
+  const on = mProp.filter(x => x.on && x.writable !== false);
+  const items = on.map(x => { const n = {}; for (const k of ['title', 'artist', 'album', 'track', 'year', 'cover']) { const v = (x.proposed || {})[k]; if (v && String(v) !== String((x.cur || {})[k] || '')) n[k] = v; } return { path: x.path, new: n, from: { artist: (x.cur || {}).artist || '' } }; }).filter(x => Object.keys(x.new).length);
+  try { const r = await api('meta/apply', { items }); toast('开始写入 ' + r.started + ' 首'); mJobView(); } catch (e) { toast(e.message); }
+}
+function mJobView() {
+  const V = $('#mview'); V.innerHTML = '<div id="mjob"><p class="hint">准备中…</p></div><div class="bar2"><button class="btn sm" id="mstop">停下</button><button class="btn sm" id="mback2">返回</button></div>';
+  $('#mstop').onclick = () => api('meta/stop', {}).then(() => toast('已让它停下（正在写的这首会写完或还原）')).catch(e => toast(e.message));
+  $('#mback2').onclick = () => { clearInterval(mPoll); mHome(); };
+  clearInterval(mPoll);
+  const tick = async () => {
+    try {
+      const j = await api('meta/job'), s = j.status || {};
+      const done = (s.ok || 0) + (s.skip || 0) + (s.err || 0), pct = s.total ? Math.round(100 * done / s.total) : 0;
+      $('#mjob').innerHTML = `<div class="job"><div class="nm"><span>✦</span><b>${j.running ? '正在写：' + esc(shortP(s.cur || '')) : '写完了'}</b><span>${done} / ${s.total || 0}</span></div><div class="prog"><i style="width:${pct}%"></i></div>
+        <div class="sp"><span>成功 ${s.ok || 0} · 本来就对 ${s.skip || 0} · 失败 ${s.err || 0}</span><span>${s.elapsed ? Math.round(s.elapsed / 60) + ' 分钟' : ''}${s.bytes ? ' · ' + fsz(s.bytes) : ''}</span></div></div>`
+        + ((s.errs || []).length ? '<p class="hint">' + s.errs.map(e => esc(shortP(e[0])) + '：' + esc(e[1])).join('<br>') + '</p>' : '')
+        + (!j.running ? '<p class="hint" style="color:var(--acc2)">写完后在 CA1000T 上做一次「初始化媒体扫描」（先把“清除歌单”的勾去掉），机器的歌手、专辑列表才会更新。</p>' : '') + (j.err ? '<p class="hint" style="color:var(--bad)">' + esc(j.err) + '</p>' : '');
+      if (!j.running) clearInterval(mPoll);
+    } catch (e) { $('#mjob').innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; clearInterval(mPoll); }
+  };
+  tick(); mPoll = setInterval(tick, 2500);
+}
+async function mAlbums() {
+  const V = $('#mview'); V.innerHTML = '<p class="hint">整理曲库里的专辑…</p>';
+  try {
+    const j = await api('meta/albums'), L = j.items;
+    V.innerHTML = `<div class="bar2"><button class="btn sm" id="mchkall">检查前 30 张没查过的</button></div><p class="hint">按网易云 / Apple Music 的专辑曲目表对照，看你的曲库里缺哪几首。歌单名被写成专辑名的（好多歌手混在一起）不算。</p>`
+      + '<div class="list">' + L.map((a, i) => `<div class="row" data-i="${i}"><span class="i">◎</span><div class="t"><b>${esc(a.album)}</b><span>${esc(a.artist)} · 有 ${a.have} 首${a.total != null ? ' / 共 ' + a.total + ' 首' : ''}</span></div><span class="r">${a.mix ? '<span class="chip lo">像是歌单</span>' : a.missing == null ? '没查过' : a.missing ? '<span class="chip">缺 ' + a.missing + '</span>' : '<span class="chip ok">齐了</span>'}</span></div>`).join('') + '</div>';
+    V.querySelectorAll('.row').forEach(r => r.onclick = () => mAlbum(L[+r.dataset.i]));
+    $('#mchkall').onclick = async () => { const todo = L.filter(a => a.missing == null && !a.mix).slice(0, 30); for (let k = 0; k < todo.length; k++) { toast('检查 ' + (k + 1) + '/' + todo.length + '：' + todo[k].album); await api('meta/album?album=' + encodeURIComponent(todo[k].album) + '&artist=' + encodeURIComponent(todo[k].artist)).catch(() => {}); } mAlbums(); };
+  } catch (e) { V.innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+async function mAlbum(a) {
+  const V = $('#mview'); V.innerHTML = '<p class="hint">查「' + esc(a.album) + '」的曲目表…</p>';
+  try {
+    const j = await api('meta/album?album=' + encodeURIComponent(a.album) + '&artist=' + encodeURIComponent(a.artist));
+    V.innerHTML = `<div class="crumb"><a href="#" id="mab">专辑</a> › ${esc(a.album)}</div>`
+      + (j.found ? `<div style="display:flex;gap:12px;align-items:center;margin:6px 4px">${j.cover ? `<img src="${esc(j.cover)}" referrerpolicy="no-referrer" style="width:72px;height:72px;border-radius:10px;object-fit:cover">` : ''}<div><b>${esc(a.artist)}</b><div class="hint" style="margin:2px 0">共 ${j.tracks.length} 首，你有 ${j.tracks.length - j.missing.length} 首${j.missing.length ? '，缺 ' + j.missing.length + ' 首' : '，齐了 ✦'}（来源：${esc(j.src)}）</div></div></div>`
+        + '<div class="list">' + j.tracks.map(t => `<div class="row ${t.have ? '' : 'dim'}"><span class="i">${t.disc > 1 ? t.disc + '-' : ''}${t.no || ''}</span><div class="t"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${fmt(t.dur)}</span></div><span class="r">${t.have ? '<span class="chip ok">有</span>' : '<span class="chip">缺</span>'}</span></div>`).join('') + '</div>'
+        + (j.extra.length ? '<p class="hint">曲库里这张专辑还有曲目表上没有的：' + j.extra.map(x => esc(x.title)).join('、') + '（可能是别的版本，或者专辑名写错了）</p>' : '')
+      : '<p class="hint">网易云和 Apple Music 都没找到这张专辑的曲目表（可能是自制合集、或专辑名不规范）。</p>');
+    $('#mab').onclick = e => { e.preventDefault(); mAlbums(); };
+  } catch (e) { V.innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+
+/* ---------- 设置 ---------- */
+$('#gear').onclick = async () => {
+  try { const j = await api('settings'); SET = j.settings; VOCAB = j.vocab; } catch (e) {}
+  const row = (k, t, d) => `<label class="sw"><span>${t}<small>${d}</small></span><input type="checkbox" data-k="${k}" ${SET[k] ? 'checked' : ''}></label>`;
+  $('#sheetbox').innerHTML = '<h3>设置</h3>'
+    + row('wordTap', '歌词里点英文单词查释义', VOCAB ? '能加进群星「单词复习」（和欧路生词一起复习）' : '查释义用有道；生词先存在本机') 
+    + row('showTrans', '显示歌词翻译', '网易云有翻译的歌（多是外文歌）在原句下面显示中文')
+    + row('autoLists', '自动歌单写到播放器', '「最近常听」「很久没听」每天更新一次，CA1000T 上也能直接点')
+    + (APP ? '<div id="appcfg"></div>' : '')
+    + '<div id="statbox"></div><button class="it" data-x="1" style="color:var(--mut)" onclick="closeSheet()">关闭</button>';
+  if (APP) api('config').then(c => {
+    const f = (k, t, ph) => `<div class="lsr"><span style="width:96px;color:var(--mut);font-size:13px;align-self:center">${t}</span><input data-c="${k}" value="${esc(c[k] || '')}" placeholder="${esc(ph)}"></div>`;
+    $('#appcfg').innerHTML = '<h3 style="margin-top:12px">连接</h3>' + f('ip', '播放器 IP', '空着就自动找') + f('uploadDir', '分享传到', '/Music/待分类')
+      + f('hubUrl', '群星地址', '例如 http://192.168.1.10:8787（可空）') + f('hubToken', '群星口令', '群星「综合」里的口令')
+      + '<p class="hint">填了群星地址：歌词里加的生词进群星「单词复习」，这里也能看听歌统计。</p><div class="bar2"><button class="btn pri" id="cfgsave">保存连接设置</button></div>';
+    $('#cfgsave').onclick = () => { const b = {}; $('#appcfg').querySelectorAll('input[data-c]').forEach(i => b[i.dataset.c] = i.value.trim()); api('config', b).then(() => { toast('已保存，正在重新连接播放器'); api('settings').then(j => { SET = j.settings; VOCAB = j.vocab; }); }).catch(e => toast(e.message)); };
+  }).catch(() => {});
+  $('#sheetbox').querySelectorAll('input[data-k]').forEach(i => i.onchange = () => api('settings', { [i.dataset.k]: i.checked }).then(j => { SET = j.settings; if (LJ) drawLyrics(LJ); toast('已保存'); }).catch(e => toast(e.message)));
+  $('#sheet').classList.add('on');
+  try { const st = await api('stats'); const m = ms => { const x = Math.round(ms / 60000); return x >= 60 ? Math.floor(x / 60) + ' 小时 ' + x % 60 + ' 分' : x + ' 分钟'; };
+    $('#statbox').innerHTML = `<h3 style="margin-top:12px">听歌统计</h3><div class="stat"><div><b>${m(st.today.ms)}</b><span>今天 · ${st.today.plays} 首</span></div><div><b>${m(st.days.reduce((t, d) => t + d.ms, 0))}</b><span>最近 7 天</span></div></div>`
+      + (st.weekTop.length ? '<p class="hint">这周听得最多：' + st.weekTop.slice(0, 5).map(x => esc(x.t) + (x.plays ? '×' + x.plays : '')).join('、') + '</p>' : '<p class="hint">从现在开始记录（直接在 CA1000T 上点的歌也算）</p>'); } catch (e) {}
+};
+function scrollLyr(force) {
+  if (!synced || !lines.length) return;
+  const t = now() + 0.25; let i = -1;
+  for (let k = 0; k < lines.length; k++) { if (lines[k].t <= t) i = k; else break; }
+  if (i === lastIdx && !force) return; lastIdx = i;
+  const ps = $('#lyr').querySelectorAll('p[data-i]'); ps.forEach(p => p.classList.remove('cur'));
+  if (i >= 0 && ps[i]) { ps[i].classList.add('cur'); const sec = $('#s-lyrics'); if (sec.classList.contains('on')) sec.scrollTo({ top: ps[i].offsetTop - sec.clientHeight * 0.4, behavior: force ? 'auto' : 'smooth' }); }
+}
+
+/* ---------- 状态 ---------- */
+const now = () => S ? Math.min(S.dur || 1e9, base + (S.state === 'PLAYING' ? (Date.now() - baseAt) / 1000 : 0)) : 0;
+function show(s) {
+  S = s; base = s.rel; baseAt = Date.now(); try { drawExtras(s); } catch (e) {}
+  $('#conn').innerHTML = `<span class="dot ${s.online ? 'on' : ''}"></span>${s.online ? 'CA1000T' : 'CA1000T 没连上'}`;
+  { const ic = s.state === 'PLAYING' ? IC.pause : IC.play; if ($('#pp').dataset.s !== s.state) { $('#pp').dataset.s = s.state; $('#pp').innerHTML = ic; } }
+  if (s.cur) {
+    $('#tt').textContent = s.cur.title; $('#ta').textContent = [artistOf(s.cur), s.cur.sr ? (s.cur.sr / 1000) + 'kHz' + (s.cur.bits ? '/' + s.cur.bits + 'bit' : '') : ''].filter(Boolean).join(' · ');
+    if ($('#art').dataset.u !== s.cur.art) { $('#art').dataset.u = s.cur.art; $('#art').src = art(s.cur.art); }
+    if (nowUrl !== s.cur.url) { nowUrl = s.cur.url; loadLyrics(); if (items.length) render(); lyrBtn(); }
+  } else if (s.state === 'PLAYING') { $('#tt').textContent = 'CA1000T 正在放别的歌'; $('#ta').textContent = '在 CA1000T 上直接选的歌，这里拿不到歌名'; }
+  if (s.vol != null && document.activeElement !== $('#vol')) { $('#vol').value = s.vol; $('#volv').textContent = s.vol; }
+}
+function tickUi() {
+  if (!S) return; const t = now();
+  $('#cur').textContent = fmt(t); $('#dur').textContent = fmt(S.dur);
+  if (!dragging) { $('#seek').max = Math.max(1, Math.floor(S.dur || 1)); $('#seek').value = Math.floor(t); }
+  scrollLyr(false);
+}
+async function poll() { try { show(await api('status')); } catch (e) { $('#conn').innerHTML = '<span class="dot"></span>' + esc(e.message); } }
+function seek(t) { api('seek', { t }).then(show).catch(e => toast(e.message)); }
+$('#seek').oninput = () => { dragging = true; $('#cur').textContent = fmt(+$('#seek').value); };
+$('#seek').onchange = () => { dragging = false; seek(+$('#seek').value); };
+$('#pp').onclick = () => api(S && S.state === 'PLAYING' ? 'pause' : 'resume', {}).then(show).catch(e => toast(e.message));
+$('#next').onclick = () => api('next', {}).then(s => { show(s); loadLyrics(true); }).catch(e => toast(e.message));
+$('#prev').onclick = () => api('prev', {}).then(s => { show(s); loadLyrics(true); }).catch(e => toast(e.message));
+let vt; $('#vol').oninput = () => setVol(+$('#vol').value);
+
+
+
+/* ---------- 播放顺序 / 睡眠定时 / 响度 ---------- */
+const MODES = [['order', '顺序播放'], ['loop', '列表循环'], ['one', '单曲循环'], ['shuffle', '随机播放']];
+function drawExtras(s) {
+  const m = s.mode || 'order';
+  if ($('#mode').dataset.m !== m) { $('#mode').dataset.m = m; $('#mode').innerHTML = IC[m]; $('#mode').classList.toggle('on', m !== 'order'); $('#mode').title = MODES.find(x => x[0] === m)[1]; }
+  const z = s.sleep; $('#sleep').classList.toggle('on', !!z);
+  if (!$('#sleep').innerHTML) $('#sleep').innerHTML = IC.moon;
+  const parts = [];
+  if (m !== 'order') parts.push(MODES.find(x => x[0] === m)[1]);
+  if (z) parts.push(z.endOfTrack ? '播完这首就停' : '睡眠 ' + fmt(z.left));
+  $('#subline').textContent = parts.join(' · ');
+  if (s.loud != null) $('#loud').classList.toggle('on', !!s.loud);
+}
+$('#mode').onclick = () => { const i = MODES.findIndex(x => x[0] === ($('#mode').dataset.m || 'order')); const n = MODES[(i + 1) % MODES.length]; api('mode', { mode: n[0] }).then(s => { show(s); toast(n[1]); }).catch(e => toast(e.message)); };
+$('#sleep').onclick = () => sheet('睡眠定时', [
+  ...[15, 30, 45, 60, 90].map(m => [m + ' 分钟后停', () => api('sleep', { min: m }).then(s => { show(s); toast(m + ' 分钟后停止播放（最后 20 秒慢慢变小声）'); }).catch(e => toast(e.message))]),
+  ['播完这首就停', () => api('sleep', { endOfTrack: true }).then(s => { show(s); toast('这首放完就停'); }).catch(e => toast(e.message))],
+  ['关闭睡眠定时', () => api('sleep', { off: true }).then(s => { show(s); toast('已关闭睡眠定时'); }).catch(e => toast(e.message))],
+]);
+$('#loud').onclick = () => api('loudness', { on: !$('#loud').classList.contains('on') }).then(r => { $('#loud').classList.toggle('on', r.loud); toast(r.loud ? '响度补偿：开（小音量时补低音和高音，听听有没有变化）' : '响度补偿：关'); }).catch(e => toast('CA1000T 不支持：' + e.message));
+api('loudness').then(r => $('#loud').classList.toggle('on', r.loud)).catch(() => {});
+
+/* ---------- 进度条填色、唱片转动 ---------- */
+function fill(el) { const mx = +el.max || 100; el.style.setProperty('--p', (100 * (+el.value) / mx) + '%'); }
+setInterval(() => { fill($('#seek')); fill($('#vol')); $('#disc').classList.toggle('spin', !!(S && S.state === 'PLAYING')); }, 300);
+
+/* ---------- 音量：± 和静音 ---------- */
+let preMute = null;
+function setVol(v) { v = Math.max(0, Math.min(100, Math.round(v))); $('#vol').value = v; $('#volv').textContent = v; fill($('#vol')); $('#vmute').innerHTML = volIcon(v); clearTimeout(vt); vt = setTimeout(() => api('volume', { v }).catch(e => toast(e.message)), 250); }
+$('#vup').onclick = () => setVol(+$('#vol').value + 2);
+$('#vdn').onclick = () => setVol(+$('#vol').value - 2);
+$('#vmute').onclick = () => { const v = +$('#vol').value; if (v) { preMute = v; setVol(0); } else setVol(preMute || 20); };
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return; if (e.key === 'ArrowUp' || e.key === '+') { e.preventDefault(); setVol(+$('#vol').value + 2); } if (e.key === 'ArrowDown' || e.key === '-') { e.preventDefault(); setVol(+$('#vol').value - 2); } if (e.key === ' ') { e.preventDefault(); $('#pp').click(); } });
+
+/* ---------- 星空背景（单独打开时；嵌在群星里用群星自己的星空） ---------- */
+(function sky() {
+  if (document.body.classList.contains('embed')) return;
+  const c = $('#sky'), g = c.getContext('2d'); let W, H, stars = [], shoot = null;
+  const rs = () => { W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; stars = Array.from({ length: Math.round(W * H / 9000) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.3 + .2, p: Math.random() * 6.3, s: .4 + Math.random() * 1.6, h: Math.random() < .15 ? 45 : Math.random() < .5 ? 260 : 210 })); };
+  rs(); addEventListener('resize', rs);
+  const draw = t => {
+    const bg = g.createRadialGradient(W * .78, H * .12, 0, W * .78, H * .12, Math.max(W, H) * .8);
+    bg.addColorStop(0, '#2a1b5e'); bg.addColorStop(.35, '#120d33'); bg.addColorStop(1, '#05040d'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    const nb = g.createRadialGradient(W * .15, H * .85, 0, W * .15, H * .85, Math.max(W, H) * .55); nb.addColorStop(0, 'rgba(60,130,255,.18)'); nb.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = nb; g.fillRect(0, 0, W, H);
+    for (const s of stars) { const a = .35 + .65 * (.5 + .5 * Math.sin(t / 1000 * s.s + s.p)); g.fillStyle = `hsla(${s.h},80%,88%,${a})`; g.beginPath(); g.arc(s.x, s.y, s.r * devicePixelRatio, 0, 6.3); g.fill(); }
+    if (!shoot && Math.random() < .004) shoot = { x: Math.random() * W, y: Math.random() * H * .5, l: 0 };
+    if (shoot) { shoot.l += 18 * devicePixelRatio; const x2 = shoot.x - shoot.l, y2 = shoot.y + shoot.l * .45; const gr = g.createLinearGradient(shoot.x, shoot.y, x2, y2); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,240,200,.9)'); g.strokeStyle = gr; g.lineWidth = 1.5 * devicePixelRatio; g.beginPath(); g.moveTo(shoot.x, shoot.y); g.lineTo(x2, y2); g.stroke(); if (shoot.l > W * .35) shoot = null; }
+    requestAnimationFrame(draw);
+  };
+  requestAnimationFrame(draw);
+})();
+
+open('0', 'CA1000T', false);
+poll(); setInterval(poll, 2000); setInterval(tickUi, 250);
+api('volume').then(j => { $('#vol').value = j.vol; $('#volv').textContent = j.vol; fill($('#vol')); $('#vmute').innerHTML = volIcon(j.vol); }).catch(() => {});
+</script>
+</body>
+</html>

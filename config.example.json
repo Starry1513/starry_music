@@ -1,0 +1,27 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8790,
+    "token": ""
+  },
+  "player": {
+    "name": "",
+    "ip": "",
+    "allowDsd": false,
+    "internalPath": "/storage/emulated/0",
+    "sdPath": "/storage/XXXX-XXXX",
+    "ftp": {
+      "port": 1212,
+      "user": "admin",
+      "pass": "admin"
+    },
+    "lyrics": true,
+    "control": {},
+    "playlistAlbums": [],
+    "python": ""
+  },
+  "hub": {
+    "url": "",
+    "token": ""
+  }
+}

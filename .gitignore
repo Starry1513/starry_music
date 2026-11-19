@@ -1,0 +1,30 @@
+# 个人配置和数据
+config.json
+data/
+# 整理工具运行时产生的文件（含你曲库的路径、原标签备份）
+tools/vendor/
+tools/_tmp/
+tools/*.json
+tools/*.jsonl
+tools/*.txt
+!tools/requirements.txt
+tools/*.csv
+tools/*.log
+tools/tag_status.json*
+# 构建产物
+node_modules/
+*.log
+android/build/
+android/assets/
+android/libs/
+android/*.apk
+android/*.keystore
+android/*.idsig
+# 其他
+_in/
+_trash/
+test/
+*.n
+*.before_*
+.DS_Store
+Thumbs.db
