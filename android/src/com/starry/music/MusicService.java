@@ -46,6 +46,7 @@ public class MusicService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel("music", "播放控制", NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel("xfer", "传文件", NotificationManager.IMPORTANCE_LOW));
+        nm.createNotificationChannel(new NotificationChannel("ask", "新下载的歌：问要不要传", NotificationManager.IMPORTANCE_HIGH));
         Notification n = base("群星音乐", "正在连接播放器…").build();
         if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE); else startForeground(1, n);
         try { mlock = ((WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE)).createMulticastLock("starry-music"); mlock.setReferenceCounted(false); mlock.acquire(); } catch (Exception ignored) {}
@@ -53,6 +54,24 @@ public class MusicService extends Service {
         if (t.isEmpty()) { byte[] b = new byte[12]; new SecureRandom().nextBytes(b); StringBuilder sb = new StringBuilder(); for (byte x : b) sb.append(String.format("%02x", x)); t = sb.toString(); getSharedPreferences("cfg", 0).edit().putString("token", t).apply(); }
         token = t;
         core = new Core(this);
+        core.inbox.notify = new Inbox.Notify() { public void done(final int ok, final int tagged, final int err, final String target) { ui.post(new Runnable() { public void run() {
+            String msg = ok + " 首新歌已传到播放器的 " + target + (tagged > 0 ? "，其中 " + tagged + " 首补好了歌名、歌手、专辑和封面" : "") + (err > 0 ? "；" + err + " 首失败，打开 App 看原因" : "") + "。播放器更新曲库后就能看到";
+            getSystemService(NotificationManager.class).notify(3, new Notification.Builder(MusicService.this, "xfer").setSmallIcon(android.R.drawable.stat_sys_upload_done).setContentTitle("导入文件夹：传完了").setContentText(msg).setStyle(new Notification.BigTextStyle().bigText(msg))
+                .setContentIntent(PendingIntent.getActivity(MusicService.this, 0, new Intent(MusicService.this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE)).setAutoCancel(true).build());
+        } }); } };
+        // 网易云 / 百度网盘下好了新歌：弹一条通知问要不要传到播放器（「导入新歌」里选“先问我”时）
+        core.inbox.ask = new Inbox.Ask() {
+            public void ask(final int n, final String names) { ui.post(new Runnable() { public void run() {
+                Intent open = new Intent(MusicService.this, MainActivity.class).putExtra("page", "inbox").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                Notification.Builder b = new Notification.Builder(MusicService.this, "ask").setSmallIcon(android.R.drawable.stat_sys_download_done)
+                    .setContentTitle("下载好了 " + n + " 首新歌，传到播放器吗？").setContentText(names).setStyle(new Notification.BigTextStyle().bigText(names + "\n传之前会先补好歌名、歌手、专辑和封面；m4a 会先转成 flac。"))
+                    .setContentIntent(PendingIntent.getActivity(MusicService.this, 4, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT)).setAutoCancel(true)
+                    .addAction(new Notification.Action.Builder(null, "传到播放器", PendingIntent.getService(MusicService.this, 41, new Intent(MusicService.this, MusicService.class).setAction("askYes"), PendingIntent.FLAG_IMMUTABLE)).build())
+                    .addAction(new Notification.Action.Builder(null, "先不传", PendingIntent.getService(MusicService.this, 42, new Intent(MusicService.this, MusicService.class).setAction("askNo"), PendingIntent.FLAG_IMMUTABLE)).build());
+                getSystemService(NotificationManager.class).notify(4, b.build());
+            } }); }
+            public void clear() { getSystemService(NotificationManager.class).cancel(4); }
+        };
         core.listener = new Core.Listener() { public void changed() { ui.post(new Runnable() { public void run() { refresh(false); } }); } };
         server = new Server(this, core, token);
         new Thread(new Runnable() { public void run() { try { server.start(); port = server.port; } catch (Exception e) { port = -1; } } }).start();
@@ -68,6 +87,8 @@ public class MusicService extends Service {
             else if (a.equals("toggle")) call("PLAYING".equals(core.state) ? "pause" : "resume", null);
             else if (a.equals("share")) share(i);
             else if (a.equals("quit")) { stopSelf(); }
+            else if (a.equals("askYes")) { try { core.inbox.approve(null); } catch (Exception ignored) {} getSystemService(NotificationManager.class).cancel(4); }
+            else if (a.equals("askNo")) { try { core.inbox.decline(null); } catch (Exception ignored) {} getSystemService(NotificationManager.class).cancel(4); }
         }
         return START_STICKY;
     }

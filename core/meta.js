@@ -85,7 +85,7 @@ module.exports = function extend(MusicCore, T2S) {
 
   /* ---------- 一首歌：现在的信息 + 建议 ---------- */
   P.fileGuess = function (p) {
-    let f = p.split('/').pop().replace(AUDIO, '').replace(/^\s*\d{1,3}\s*[.\-_、 ]\s*/, '');
+    let f = String(p).split(/[\\/]/).pop().replace(AUDIO, '').replace(/^\s*\d{1,3}\s*[.\-_、 ]\s*/, '');
     let m = /^(.+?)-(.+?)-\d{5,}$/.exec(f); if (m) return { title: m[1].replace(/_/g, ' ').trim(), artist: m[2].replace(/_/g, ' / ').trim() };
     m = /^(.+?) - (.+)$/.exec(f); if (m) return { title: m[2].trim(), artist: m[1].trim() };
     return { title: f.trim(), artist: '' };
@@ -108,8 +108,8 @@ module.exports = function extend(MusicCore, T2S) {
     if (S(c.title) !== c.title) L.push('繁体');
     return L;
   };
-  P.metaPropose = async function (p) {
-    const c = await this.curInfo(p);
+  P.metaPropose = async function (p, cur0) {
+    const c = cur0 || await this.curInfo(p);
     const q = { title: String(c.title || '').replace(AUDIO, '').replace(/^\s*\d{1,3}\s*[.\-_、 ]\s*/, ''), artist: c.artist || this.fileGuess(p).artist, dur: c.dur };
     const qs = { title: q.title.replace(/[（(\[【][^）)\]】]*[）)\]】]/g, '').trim() || q.title, artist: (q.artist || '').split(SEP)[0] || '' };
     const [a, b] = await Promise.all([this.srcNetease(qs).catch(e => ({ err: e.message })), this.srcItunes(qs).catch(e => ({ err: e.message }))]);
@@ -130,11 +130,14 @@ module.exports = function extend(MusicCore, T2S) {
       x.score = Math.round(sc * 10) / 10; x.tm = tm; x.am = am; x.d = d == null ? null : Math.round(d);
     }
     // 同一首歌（歌名、歌手都对上）出现在好几张专辑：越早发行越可能是原专辑
-    const ys = cands.filter(x => x.tm >= 1 && x.am !== false && x.year).map(x => x.year), y0 = ys.length ? Math.min(...ys) : 0;
-    if (y0) for (const x of cands) if (x.tm >= 1 && x.am !== false && x.year) x.score = Math.round((x.score + Math.min(4, (x.year - y0) / 4)) * 10) / 10;
+    for (const x of cands) x.base = x.score;   // 判断“把握大不大”用这个，不受下面排序微调影响
+    const same = cands.filter(x => x.tm === 2 && x.am !== false && x.year && (x.d == null || x.d <= 2)), y0 = same.length ? Math.min(...same.map(x => x.year)) : 0;
+    if (y0) for (const x of same) x.score = Math.round((x.score + Math.min(2, (x.year - y0) / 5)) * 10) / 10;
+    // 文件里本来写着的专辑也在候选里：优先留着它（同一首歌常收在好几张专辑里，别随手换掉）
+    const ca = c.album ? norm(c.album) : ''; if (ca) for (const x of cands) if (x.tm >= 1 && x.am !== false && norm(x.album || '') === ca) x.score -= 3;
     cands.sort((x, y) => x.score - y.score);
     const best = cands[0] || null;
-    let conf = !best ? 'none' : best.tm >= 1 && best.am !== false && (best.d == null || best.d <= 3) && best.score <= 10 ? 'high' : best.tm >= 0.5 && best.score <= 26 ? 'mid' : 'low';
+    let conf = !best ? 'none' : best.tm >= 1 && best.am !== false && (best.d == null || best.d <= 3) && best.base <= 10 ? 'high' : best.tm >= 0.5 && best.base <= 26 ? 'mid' : 'low';
     if (conf === 'high' && !q.artist && best.d == null) conf = 'mid';
     if (best && best.am === false) conf = 'low';   // 歌手对不上：多半是翻唱，不改   // 歌手、时长都不知道：只按歌名对，拿不准
     return { path: p, cur: c, problems: this.problems(p, c), q, cands: cands.slice(0, 12), pick: best && conf !== 'low' ? 0 : -1, conf, err: errs.join('；'), writable: WRITABLE.test(p), proposed: best && conf !== 'low' ? this.proposal(c, best) : this.proposal(c, null) };
@@ -214,6 +217,28 @@ module.exports = function extend(MusicCore, T2S) {
     return { running: !!this.tagProc, exit: this.tagExit, err: this.tagErr || '', status: st };
   };
 
+  /* ---------- 播放器上的 .m4a 转成 .flac（tools/m4a2flac.py；CA1000T 放不了 m4a） ---------- */
+  P.flacStart = function (dir, list) {
+    if (this.flacProc) throw new Error('上一轮还在转，等它转完');
+    if (!this.ip) throw new Error('还没连上播放器');
+    const T = this.toolsDir(), out = fs.openSync(path.join(T, 'm4a2flac.log'), 'a');
+    const args = [path.join(T, 'm4a2flac.py'), '--host', this.ip, '--dir', dir || '/Music'].concat(this.cfg.ffmpeg ? ['--ffmpeg', this.cfg.ffmpeg] : []).concat(list ? ['--list'] : []);
+    const pr = spawn(this.python(), args, { cwd: T, windowsHide: true, stdio: ['ignore', out, out], env: Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' }) });
+    this.flacProc = pr; this.flacErr = ''; this.flacList = !!list; this.flacAt = Date.now();
+    pr.on('error', e => { this.flacErr = 'Python 没跑起来：' + e.message; if (this.flacProc === pr) this.flacProc = null; });
+    pr.on('exit', c => { if (this.flacProc === pr) this.flacProc = null; this.flacExit = c; });
+    return { started: true, dir: dir || '/Music', list: !!list };
+  };
+  P.flacJob = function () {
+    let st = null; try { st = JSON.parse(fs.readFileSync(path.join(this.toolsDir(), 'm4a_status.json'), 'utf8')); } catch (e) {}
+    return { running: !!this.flacProc, list: !!this.flacList, exit: this.flacExit, err: this.flacErr || (st && st.fatal) || '', status: st, auto: this.set.autoFlac !== false };
+  };
+  // 自动转：每 15 分钟看一眼「新歌传到的文件夹」，有 m4a 就转（只看那一个文件夹，很快）
+  P.flacAuto = function () {
+    if (this.flacTimer) return;
+    this.flacTimer = setInterval(() => { try { if (this.set.autoFlac !== false && !this.flacProc && this.ip) this.flacStart((this.inCfg && this.inCfg.target) || '/Music/待分类'); } catch (e) {} }, 15 * 60e3);
+  };
+
   /* ---------- 专辑缺哪几首 ---------- */
   P.metaAlbums = async function () {
     const dms = await this.dmsAll(), m = new Map();
@@ -270,6 +295,7 @@ module.exports = function extend(MusicCore, T2S) {
   /* ---------- 接口 ---------- */
   P.api = async function (u, body) {
     const p = u.pathname.replace(/^\/api\/music\/?/, ''), Q = k => u.searchParams.get(k);
+    this.flacAuto();
     if (p === 'meta/list') { this.seen = Date.now(); return this.metaList(Q('kind') || 'missing', Q('dir')); }
     if (p === 'meta/propose') {
       const paths = [].concat(body.paths || []).slice(0, 60), out = [];
@@ -280,6 +306,9 @@ module.exports = function extend(MusicCore, T2S) {
     if (p === 'meta/search') { const q = { title: Q('title') || '', artist: Q('artist') || '' }; const [a, b] = await Promise.all([this.srcNetease(q).catch(() => []), this.srcItunes(q).catch(() => [])]); return { items: a.concat(b) }; }
     if (p === 'meta/apply') return this.metaApply(body.items);
     if (p === 'meta/job') return this.metaJob();
+    if (p === 'flac/job') { this.flacAuto(); return this.flacJob(); }
+    if (p === 'flac/start') { const b = body || {}; return this.flacStart(String(b.dir || Q('dir') || '/Music'), !!(b.list || Q('list'))); }
+    if (p === 'flac/stop') { if (this.flacProc) this.flacProc.kill(); this.flacProc = null; return this.flacJob(); }
     if (p === 'meta/stop') { if (this.tagProc) this.tagProc.kill(); return { stopped: true }; }
     if (p === 'meta/albums') return this.metaAlbums();
     if (p === 'meta/album') return this.metaAlbum(Q('album') || '', Q('artist') || '');

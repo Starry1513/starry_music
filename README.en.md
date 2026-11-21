@@ -32,6 +32,7 @@ The interface is in Simplified Chinese.
   - Foreign-language songs show a Chinese translation when one exists.
   - If the match is wrong, tap "换歌词" (change lyrics) to search and pick another version. Your choice is remembered. You can also hide lyrics for a song.
   - Lyric text is never stored locally; only "which version this song uses" is saved.
+  - For songs with no lyrics anywhere that aren't instrumental, the computer can **transcribe lyrics offline**: it separates the vocals, then runs SenseVoice speech recognition to make timed lyrics, marked "auto-transcribed (may be inaccurate)". No audio is uploaded; results are only cached on the computer. Needs sherpa-onnx and models (SenseVoice, silero VAD, spleeter 2-stems). The Android app borrows the computer for this when a hub address is set.
 - **Tap English words** (can be turned off in settings):
   - Tap an English word in the lyrics to see its meaning.
   - "+ 生词本" adds it to Constellation's word review, together with words synced from Eudic. Without Constellation, words are kept on the device.
@@ -157,6 +158,8 @@ ui/music.html             UI (shared by desktop and Android)
 integrations/             Wrapper for the Constellation hub
 android/                  Android app (Java, no Gradle)
 tools/tagfix.py           Writes tags (title, artist, album, cover…); original tags backed up for restore
+tools/asr.py              Offline lyric transcription (vocal separation + speech recognition)
+tools/unpack.py           Unpacks zip / 7z / rar in the import folder
 ```
 
 ## Privacy

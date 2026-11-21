@@ -31,9 +31,12 @@ public class Upnp {
         try {
             s = new MulticastSocket(); s.setSoTimeout(500); s.setTimeToLive(2);
             InetAddress grp = InetAddress.getByName("239.255.255.250");
-            for (String st : new String[]{"urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:device:MediaServer:1", "ssdp:all"}) {
-                byte[] m = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: " + st + "\r\n\r\n").getBytes();
-                s.send(new DatagramPacket(m, m.length, grp, 1900));
+            for (int rep = 0; rep < 2; rep++) {   // UDP 会丢包：发两轮
+                for (String st : new String[]{"urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:device:MediaServer:1", "ssdp:all"}) {
+                    byte[] m = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: " + st + "\r\n\r\n").getBytes();
+                    s.send(new DatagramPacket(m, m.length, grp, 1900));
+                }
+                if (rep == 0) try { Thread.sleep(250); } catch (InterruptedException e) { break; }
             }
             long end = System.currentTimeMillis() + 3500; byte[] buf = new byte[4096];
             while (System.currentTimeMillis() < end) {

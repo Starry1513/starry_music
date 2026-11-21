@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0a14">
 <title>群星音乐</title>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem('sm_theme') || 'star'; } catch (e) {}</script>
 <style>
 :root{--bg:#05040d;--glass:rgba(22,18,48,.55);--glass2:rgba(34,28,72,.6);--line:rgba(170,150,255,.16);--tx:#f1eeff;--mut:#a59fcf;--acc:#c9a7ff;--acc2:#ffd98a;--acc3:#8fd4ff;--ok:#8ff0c0;--bad:#ff9fb0;--glow:0 0 18px rgba(201,167,255,.45)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -57,6 +58,7 @@ section.on{display:block;animation:fade .35s ease}
 .row .t{flex:1;min-width:0}
 .row .t b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .t span{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.row .t .chip{display:inline-block;max-width:100%;vertical-align:middle}
 .row .r{font-size:12px;color:var(--mut);flex:none}
 .row .m{background:none;border:none;color:var(--mut);font-size:20px;padding:0 6px;flex:none}
 .row.playing b{color:var(--acc2);text-shadow:0 0 10px rgba(255,217,138,.6)}
@@ -114,7 +116,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-ra
 .sheet .box{background:linear-gradient(170deg,rgba(40,30,90,.96),rgba(14,12,36,.98));border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:900px;padding:14px 12px calc(16px + env(safe-area-inset-bottom));max-height:75vh;overflow-y:auto}
 .sheet .box h3{margin:4px 8px 10px;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet .box button.it{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);color:var(--tx);padding:13px 10px;font-size:15px}
-.sheet .box button.it small{color:var(--mut);margin-left:6px}
+.sheet .box button.it small{color:var(--mut);margin-left:6px;white-space:pre-line}
 .job{border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin:8px 0;font-size:13px;background:var(--glass);backdrop-filter:blur(10px)}
 .job .nm{display:flex;gap:8px}.job .nm b{flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prog{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin:6px 0 4px}
@@ -122,33 +124,279 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-ra
 .prog.b i{background:linear-gradient(90deg,#8fd4ff,#ffd98a)}
 .job .sp{display:flex;justify-content:space-between;color:var(--mut);font-size:12px}
 .hint{color:var(--mut);font-size:12px;margin:8px 4px}
+
+/* ---------- 播放页（点歌词进入）：A 黑胶 / B 歌词视频 / C CD / D 星空轨道 ---------- */
+@keyframes npspin{to{transform:rotate(360deg)}}
+@keyframes npspinr{to{transform:rotate(-360deg)}}
+@keyframes npken{0%{transform:scale(1.05) translate(0,0)}100%{transform:scale(1.25) translate(-4%,3%)}}
+@keyframes npfill{from{width:0}to{width:100%}}
+@keyframes nprise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes nptw{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes npglow{0%,100%{box-shadow:0 0 30px 4px rgba(201,167,255,.35)}50%{box-shadow:0 0 54px 10px rgba(143,212,255,.45)}}
+.npo{position:fixed;inset:0;z-index:7;display:none;flex-direction:column;overflow:hidden;color:#efeaff;--tint:#3b2f8f;background:#0b0a14}
+.npo.on{display:flex}
+.npo.paused .spin,.npo.paused .bgb,.npo.paused .kar{animation-play-state:paused!important}
+.npo .vin,.npo .cdisc,.npo .orb{flex:none}
+@keyframes npkar{to{background-position:0 0}}
+.npo .bgb{position:absolute;inset:-25%;background-size:cover;background-position:center;filter:blur(60px) saturate(1.3);opacity:.55;transform:scale(1.1)}
+.npo .dim{position:absolute;inset:0;background:rgba(8,7,18,.45)}
+.npo .top{position:relative;display:flex;align-items:center;gap:6px;padding:calc(10px + env(safe-area-inset-top)) 12px 4px;z-index:2}
+.npo .top .x{background:none;border:none;color:inherit;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.npo .top .x svg{width:24px;height:24px}
+.npo .sty{flex:1;display:flex;justify-content:center;gap:6px}
+.npo .sty button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:inherit;border-radius:999px;font-size:12px;padding:5px 11px}
+.npo .sty button.on{background:rgba(201,167,255,.35);border-color:rgba(201,167,255,.8)}
+.npo .stage{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;min-height:0;padding:6px 24px 0;z-index:1}
+.npo .cv{background:#1d1646 center/cover no-repeat}
+.npo .meta{width:100%;max-width:520px}
+.npo .meta b{display:block;font-size:22px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.npo .meta span{display:block;font-size:14px;opacity:.75;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.npo .lines{width:100%;max-width:560px;flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:24px 0 40%;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%)}
+.npo .lines::-webkit-scrollbar{display:none}
+.npo .lines p{margin:0;padding:7px 0;opacity:.5;transition:opacity .3s,font-size .3s,color .3s;cursor:pointer;font-size:16px}
+.npo .lines p.c{opacity:1;font-size:20px;font-weight:700}
+.npo .lines p .tr{display:block;font-size:.75em;opacity:.8;font-weight:400}
+.npo .back{position:absolute;right:16px;bottom:170px;z-index:3;background:rgba(201,167,255,.3);border:1px solid rgba(201,167,255,.7);color:inherit;border-radius:999px;padding:6px 12px;font-size:12px;display:none}
+.npo .back.on{display:block}
+.npo .bar{position:relative;z-index:2;padding:10px 24px calc(22px + env(safe-area-inset-bottom))}
+.npo .bar .pg{height:4px;border-radius:2px;background:rgba(255,255,255,.15);cursor:pointer}.npo .bar .pg i{display:block;height:4px;border-radius:2px;background:#c9a7ff;width:0}
+.npo .bar .tm{display:flex;justify-content:space-between;font-size:11px;opacity:.75;margin-top:6px}
+.npo .bar .bt{display:flex;align-items:center;justify-content:center;gap:40px;margin-top:8px}
+.npo .bar .bt button{background:none;border:none;color:inherit;width:52px;height:52px;display:flex;align-items:center;justify-content:center}
+.npo .bar .bt button svg{width:28px;height:28px}
+.npo .bar .bt .pp{width:70px;height:70px;border-radius:50%;border:1.5px solid rgba(201,167,255,.85)}
+/* A 黑胶 */
+.npo.sA .vin{position:relative;width:min(78vw,330px);aspect-ratio:1;margin-top:3vh}
+.npo.sA .rec{position:absolute;left:5%;top:14%;width:90%;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle,#161616 0 2px,#0c0c0c 2px 4px);box-shadow:0 0 0 8px rgba(255,255,255,.06);animation:npspin 20s linear infinite}
+.npo.sA .rec .cv{position:absolute;left:18%;top:18%;width:64%;height:64%;border-radius:50%}
+.npo.sA .rec:after{content:"";position:absolute;left:48%;top:48%;width:4%;height:4%;border-radius:50%;background:#0b0a14}
+.npo.sA .arm{position:absolute;right:12%;top:0;width:20%;z-index:3;transform-origin:30% 7%;transform:rotate(18deg);transition:transform .6s ease}
+.npo.sA.paused .arm{transform:rotate(-8deg)}
+.npo.sA .meta{margin-top:3vh}.npo.sA .lines{margin-top:1vh}
+/* B 歌词视频 */
+.npo.sB{background:#120a18}.npo.sB .bgb{inset:-40px;filter:none;opacity:1;transform:none;animation:npken 24s ease-in-out infinite alternate}
+.npo.sB .dim{background:linear-gradient(180deg,rgba(10,6,16,.35) 0%,rgba(10,6,16,.05) 30%,rgba(10,6,16,.55) 58%,rgba(10,6,16,.92) 100%)}
+.npo.sB .stage{justify-content:flex-end;align-items:stretch}
+.npo.sB .mini{display:flex;gap:12px;align-items:center;position:absolute;top:6px;left:24px;right:24px}
+.npo.sB .mini .cv{width:44px;height:44px;border-radius:8px;flex:none}
+.npo.sB .mini b{font-size:15px;font-weight:500;display:block}.npo.sB .mini span{font-size:12px;opacity:.8}
+.npo.sB .lines{font-family:'Noto Serif SC','Songti SC',serif;margin-top:64px;filter:drop-shadow(0 2px 10px rgba(0,0,0,.45));padding-top:45%}
+.npo.sB .lines p.c{font-size:30px;line-height:1.35;margin:10px 0}
+/* 逐字染色：跨行也是一行一行染过去 */
+.npo .kar{background:linear-gradient(90deg,#ffd98a 0 50%,#ffffff 50% 100%);background-size:200% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-box-decoration-break:slice;box-decoration-break:slice;animation:npkar 3s linear forwards}
+.npo.sB .bar .pg i{background:#ffd98a}
+/* C CD（浅色） */
+.npo.sC{background:#f3f0e9;color:#1d1b24}.npo.sC .bgb,.npo.sC .dim{display:none}
+.npo.sC .sty button{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.15)}.npo.sC .sty button.on{background:#1d1b24;color:#f3f0e9;border-color:#1d1b24}
+.npo.sC .cdisc{position:relative;width:min(72vw,290px);aspect-ratio:1;margin-top:3vh;border-radius:50%;background:conic-gradient(from 0deg,#d7dbe2,#f6f7f9,#c9d6e6,#e8d6ef,#f6f7f9,#d4e6dc,#e9e2cf,#d7dbe2);animation:npspin 7s linear infinite;box-shadow:0 14px 30px rgba(40,30,20,.18)}
+.npo.sC .cdisc .cv{position:absolute;left:17%;top:17%;width:66%;height:66%;border-radius:50%}
+.npo.sC .cdisc:after{content:"";position:absolute;left:45.5%;top:45.5%;width:9%;height:9%;border-radius:50%;background:#f3f0e9;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.npo.sC .meta{text-align:center;margin-top:4vh}.npo.sC .meta span{color:#5f5a6a;opacity:1}
+.npo.sC .lines{text-align:center;margin-top:1vh}
+.npo.sC .lines p{color:#5f5a6a;opacity:1}.npo.sC .lines p.c{color:#1d1b24}
+.npo.sC .bar .pg{background:#ddd7cb}.npo.sC .bar .pg i{background:#1d1b24}.npo.sC .bar .tm{color:#5f5a6a;opacity:1}
+.npo.sC .bar .pp{background:#1d1b24;color:#f3f0e9;border:none}
+/* D 星空轨道 */
+.npo.sD{background:#05040d}.npo.sD .bgb{opacity:.25}
+.npo.sD .st{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;animation:nptw 3s ease-in-out infinite}
+.npo.sD .orb{position:relative;width:min(82vw,330px);aspect-ratio:1;margin-top:3vh}
+.npo.sD .ring{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(201,167,255,.35);animation:npspin 40s linear infinite}
+.npo.sD .ring i{position:absolute;left:calc(50% - 6px);top:-6px;width:12px;height:12px;border-radius:50%;background:#ffd98a;box-shadow:0 0 14px #ffd98a}
+.npo.sD .otxt{position:absolute;inset:0;animation:npspinr 60s linear infinite}
+.npo.sD .core{position:absolute;left:16.7%;top:16.7%;width:66.6%;height:66.6%;border-radius:50%;overflow:hidden;animation:npglow 6s ease-in-out infinite}
+.npo.sD .core .cv{position:absolute;inset:0;animation:npspin 30s linear infinite}
+.npo.sD .meta{text-align:center;margin-top:3vh}
+.npo.sD .lines{text-align:center;margin-top:1vh}
+.npo.sD .lines p.c{text-shadow:0 0 14px rgba(201,167,255,.9),0 0 28px rgba(143,212,255,.45)}
+/* 平板横屏 / 电脑：左边唱片，右边歌名和歌词 */
+@media (min-width:820px) and (orientation:landscape){
+  .npo:not(.sB) .stage{display:grid;grid-template-columns:auto minmax(0,40vw);grid-template-rows:1fr 1fr;column-gap:6vw;justify-content:center;align-items:center}
+  .npo .stage>.vin,.npo .stage>.cdisc,.npo .stage>.orb{grid-column:1;grid-row:1/3;margin:0}
+  .npo .stage>.vin,.npo .stage>.orb{width:min(66vh,480px)}.npo .stage>.cdisc{width:min(58vh,420px)}
+  .npo:not(.sB) .meta b{font-size:28px}.npo:not(.sB) .lines p.c{font-size:24px}.npo:not(.sB) .lines p{font-size:17px}
+  .npo:not(.sB) .stage>.meta{grid-column:2;grid-row:1;align-self:end;margin:0 0 3vh}
+  .npo:not(.sB) .stage>.lines{grid-column:2;grid-row:2;align-self:stretch;margin:0;max-height:50vh}
+  .npo.sC .stage>.meta,.npo.sC .stage>.lines,.npo.sD .stage>.meta,.npo.sD .stage>.lines{text-align:left;align-items:flex-start}
+  .npo.sB .stage{padding-left:8vw;padding-right:30vw}
+}
+
+/* ---------- 主题：星空（默认）/ 极简深色 / 浅色（设置里切换，记在这台设备上） ---------- */
+html[data-theme=dark]{--bg:#111016;--glass:rgba(30,29,38,.92);--glass2:rgba(38,37,48,.95);--line:rgba(255,255,255,.08);--tx:#eceaf2;--mut:#9c98ab;--acc:#b9a4ff;--glow:none}
+html[data-theme=dark] #sky,html[data-theme=light] #sky{display:none}
+html[data-theme=dark] .tabs button,html[data-theme=dark] .btn,html[data-theme=dark] .list{backdrop-filter:none;-webkit-backdrop-filter:none}
+html[data-theme=dark] .tabs button.on,html[data-theme=dark] .btn.pri{background:#2d2840;border-color:#4b4370;box-shadow:none}
+html[data-theme=dark] footer{background:#19181f;backdrop-filter:none;box-shadow:none}
+html[data-theme=dark] header h1{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--tx)}
+html[data-theme=dark] #lyr p.cur{text-shadow:none;color:#fff}
+html[data-theme=dark] .ctl button.big{background:#26232f;box-shadow:inset 0 0 0 1.5px #5a5180}
+html[data-theme=dark] .ctl button.big svg{filter:none}
+html[data-theme=dark] .disc{box-shadow:none}
+html[data-theme=light]{--bg:#f4f2ee;--glass:#ffffff;--glass2:#ffffff;--line:rgba(30,25,50,.1);--tx:#1d1b24;--mut:#6b6676;--acc:#6a4fd8;--acc2:#b7791f;--acc3:#2f7fb8;--ok:#1e8a5a;--bad:#c0394f;--glow:none}
+html[data-theme=light] meta{color:inherit}
+html[data-theme=light] header h1{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--tx)}
+html[data-theme=light] .tabs button,html[data-theme=light] .btn,html[data-theme=light] .list{backdrop-filter:none;-webkit-backdrop-filter:none}
+html[data-theme=light] .tabs button.on,html[data-theme=light] .btn.pri,html[data-theme=light] .seg .btn.on{background:#1d1b24;border-color:#1d1b24;color:#fff;box-shadow:none}
+html[data-theme=light] #lyr p{color:rgba(29,27,36,.45)}
+html[data-theme=light] #lyr p.cur{color:#1d1b24;text-shadow:none}
+html[data-theme=light] footer{background:#ffffff;box-shadow:0 6px 24px rgba(30,25,50,.08);backdrop-filter:none}
+html[data-theme=light] .ctl button{color:#2a2733}
+html[data-theme=light] .ctl button.big{background:#1d1b24;color:#fff;box-shadow:none}
+html[data-theme=light] .ctl button.big svg{filter:none}
+html[data-theme=light] .vol button{color:#5f5a6a}
+html[data-theme=light] input[type=range]{background:linear-gradient(90deg,var(--acc) var(--p,0%),rgba(0,0,0,.12) var(--p,0%))}
+html[data-theme=light] input[type=range]::-webkit-slider-thumb{box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+html[data-theme=light] .disc{box-shadow:0 0 0 1px rgba(0,0,0,.1)}.html[data-theme=light] .disc::after{background:#f4f2ee}
+html[data-theme=light] .chip{color:#8a5a00;border-color:rgba(138,90,0,.35)}html[data-theme=light] .chip.ok{color:#1e7a50;border-color:rgba(30,122,80,.35)}html[data-theme=light] .chip.lo{color:#b0304a;border-color:rgba(176,48,74,.35)}
+html[data-theme=light] .row.playing b{color:var(--acc);text-shadow:none}
+html[data-theme=light] .row:active,html[data-theme=light] .row:hover{background:rgba(30,25,50,.05)}
+html[data-theme=light] .sheet .box,html[data-theme=light] .wcard{background:#ffffff;color:var(--tx)}
+html[data-theme=light] .toast{background:#1d1b24;color:#fff}
+html[data-theme=light] .mbar{background:linear-gradient(0deg,rgba(244,242,238,.97),rgba(244,242,238,.7))}
+html[data-theme=light] .lsr input{background:#fff}
+html[data-theme=light] .dl ins{color:#1e7a50}html[data-theme=light] .dl del{color:#b0304a}
+html[data-theme=light] .prog{background:rgba(0,0,0,.08)}
+html[data-theme=light] #volv,html[data-theme=light] .pill{color:var(--tx)}
+html[data-theme=dark] .sheet .box,html[data-theme=dark] .wcard{background:#1b1a22}
+html[data-theme=dark] .mbar{background:linear-gradient(0deg,rgba(17,16,22,.97),rgba(17,16,22,.7))}
+/* 导入文件夹：网易云 → 播放器 流程条 */
+.flow{display:flex;gap:4px;margin:6px 0 4px;overflow-x:auto;padding-bottom:2px}
+.flow .st{flex:1 1 0;min-width:0;border:1px solid var(--line);border-radius:12px;padding:7px 8px;font-size:11.5px;color:var(--mut);line-height:1.35;position:relative;background:var(--glass)}
+.flow .st b{display:block;font-size:12.5px;color:var(--tx);margin-bottom:2px}
+.flow .st small{display:block}@media (max-width:640px){.flow .st:not(.on) small{display:none}.flow .st b{font-size:12px}}
+.flow .st i{font-style:normal;display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;border:1px solid var(--line);font-size:10.5px;margin-right:4px;color:var(--mut)}
+.flow .st.on{border-color:var(--acc2);box-shadow:0 0 0 1px var(--acc2) inset}.flow .st.on i{background:var(--acc2);color:var(--bg);border-color:var(--acc2)}
+.flow .st.on b::after{content:' ·';animation:fl 1s steps(2) infinite}@keyframes fl{50%{opacity:0}}
+.flow .st.ok i{background:var(--ok);color:var(--bg);border-color:var(--ok)}
+.inst{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12px;color:var(--mut);margin:2px 2px 6px}
+.inst .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:1px}.inst .dot.off{background:var(--mut)}.inst .dot.bad{background:var(--bad)}
+details.faq{margin:4px 0 8px;border:1px solid var(--line);border-radius:12px;padding:6px 10px;background:var(--glass)}
+details.faq summary{cursor:pointer;font-size:13px;color:var(--tx);list-style:none}details.faq summary::before{content:'▸ ';color:var(--mut)}details.faq[open] summary::before{content:'▾ '}
+details.faq dl{margin:6px 0 2px;font-size:12.5px;line-height:1.55}details.faq dt{color:var(--tx);margin-top:7px}details.faq dd{margin:1px 0 0;color:var(--mut)}
+.callout{border:1px dashed var(--acc2);border-radius:12px;padding:8px 10px;margin:6px 0;font-size:12.5px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+/* 导入文件夹：总开关、数字、要你处理 */
+.inhero{padding:14px 16px}.inhero .hrow{display:flex;gap:14px;align-items:center;justify-content:space-between}
+.inhero .ht{font-size:19px;font-weight:600;color:var(--tx)}.inhero .hs{font-size:13px;color:var(--mut);margin-top:3px;line-height:1.5}
+.bigsw{position:relative;flex:0 0 64px;height:36px;cursor:pointer}.bigsw input{opacity:0;position:absolute;inset:0}
+.bigsw i{position:absolute;inset:0;border-radius:20px;background:var(--line);transition:.2s}.bigsw i::after{content:'';position:absolute;left:4px;top:4px;width:28px;height:28px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px #0006}
+.bigsw input:checked+i{background:var(--ok)}.bigsw input:checked+i::after{left:32px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}@media (max-width:560px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--glass)}.tile b{display:block;font-size:22px;color:var(--tx);line-height:1.2}.tile b small{font-size:12px;color:var(--mut);font-weight:400}
+.tile span{font-size:12px;color:var(--mut)}.tile span a{color:var(--acc2)}.tile.on{border-color:var(--acc2)}.tile.on b{color:var(--acc2)}.tile.warn{border-color:var(--bad)}.tile.warn b{color:var(--bad)}.tile.ok b{color:var(--ok)}
+.intodo{border:1.5px solid var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}.intodo .nm b{color:var(--bad)}
+.act{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 2px;border-top:1px solid var(--line)}.act:first-of-type{border-top:none}
+.act>div:first-child{flex:1;min-width:0}.act b{font-size:14px;color:var(--tx)}.act small{display:block;font-size:12px;color:var(--mut);line-height:1.45;margin-top:2px}.act .lsr{flex:0 1 340px}
+@media (max-width:560px){.act{flex-direction:column;align-items:stretch}.act .lsr{flex:auto}}
+.srcs{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:720px){.srcs{grid-template-columns:1fr}}.srcc{margin:0}.srcc a,.hint a{color:var(--acc2)}
+.ckph{width:18px;flex:0 0 18px}
+/* ---------- 外壳：侧边栏（宽屏）/ 底部标签栏（手机） ---------- */
+#side,#bnav{display:none}
+#vtog{display:none}
+.inbadge{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#1a0d14;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-left:auto}
+footer .sub:empty{display:none}
+@media (max-width:819px){
+  header{padding:10px 16px 4px}
+  #bnav{display:grid;grid-template-columns:repeat(5,1fr);margin:0 10px calc(8px + env(safe-area-inset-bottom));padding:4px;border:1px solid var(--line);border-radius:18px;background:var(--glass2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:5}
+  #bnav button{background:none;border:none;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:6px 0 4px;position:relative;border-radius:12px}
+  #bnav button svg{width:23px;height:23px}
+  #bnav button.on{color:var(--tx)}#bnav button.on svg{color:var(--acc)}
+  #bnav .inbadge{position:absolute;top:2px;left:calc(50% + 6px);margin:0;height:16px;min-width:16px;font-size:10px}
+  /* 手机上的播放条：一行（封面、歌名、播放/下一首），下面一条细进度；音量点喇叭再展开 */
+  footer{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"np ctl" "pbar pbar" "vol vol" "sub sub";column-gap:8px;margin:0 10px 6px;padding:8px 12px 6px;border-radius:18px}
+  footer .np{grid-area:np;min-width:0}footer .disc{width:44px;height:44px}
+  footer .ctl{grid-area:ctl;gap:4px;margin:0}footer .ctl .side{display:none}footer .ctl button svg{width:22px;height:22px}
+  footer .ctl button.big{width:44px;height:44px}footer .ctl button.big svg{width:22px;height:22px}
+  footer #vtog{display:flex}
+  footer .pbar{grid-area:pbar;margin:6px 0 0;font-size:11px}
+  footer .vol{grid-area:vol;display:none}footer.v .vol{display:flex}
+  footer .sub{grid-area:sub}
+}
+@media (min-width:820px){
+  body{display:grid;grid-template-columns:236px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;max-width:none;height:100vh;height:100dvh}
+  #side{display:flex;flex-direction:column;gap:2px;grid-row:1/4;grid-column:1;padding:20px 12px 16px;border-right:1px solid var(--line);background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);overflow-y:auto}
+  #side .brand{font-size:19px;font-weight:600;letter-spacing:2px;padding:0 10px 6px;background:linear-gradient(90deg,#fff,#c9a7ff 60%,#8fd4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #side .brand::before{content:"✦ ";color:var(--acc2);-webkit-text-fill-color:var(--acc2)}
+  #side .ng{font-size:11.5px;color:var(--mut);letter-spacing:1px;margin:16px 12px 4px;opacity:.75}
+  #side button{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;color:var(--mut);padding:9px 12px;border-radius:11px;font-size:14.5px;text-align:left;cursor:pointer;transition:background .2s,color .2s}
+  #side button svg{width:20px;height:20px;flex:none}
+  #side button:hover{background:rgba(255,255,255,.06);color:var(--tx)}
+  #side button.on{color:#fff;background:linear-gradient(135deg,rgba(150,110,255,.32),rgba(80,150,255,.2));box-shadow:inset 0 0 0 1px rgba(201,167,255,.42)}
+  #side button.on svg{color:var(--acc)}
+  header,main,footer{grid-column:2}
+  header{padding:18px 28px 8px}header h1{font-size:24px;letter-spacing:1px}header h1::before{content:none}
+  section{padding:4px 28px 18px}
+  /* 宽屏的播放条：一整行，左边歌、中间按钮和进度、右边音量（Spotify 那样） */
+  footer{display:grid;grid-template-columns:minmax(190px,1fr) minmax(300px,1.4fr) minmax(280px,1fr);grid-template-areas:"np ctl vol" "np pbar vol" "sub sub sub";align-items:center;column-gap:22px;margin:0 16px 14px;padding:10px 20px}
+  footer .vol{gap:6px;min-width:0}
+  footer .np{grid-area:np;min-width:0}footer .ctl{grid-area:ctl;gap:26px;margin:0}footer .pbar{grid-area:pbar;margin:4px 0 0}
+  footer .vol{grid-area:vol;margin:0}footer .sub{grid-area:sub}
+  footer .ctl button.big{width:48px;height:48px}
+}
+@media (min-width:820px) and (max-width:1199px){
+  /* 平板竖屏：侧边栏留着，播放条分两行（歌 + 按钮 / 进度 + 音量） */
+  footer{grid-template-columns:minmax(0,1fr) auto minmax(0,.9fr);grid-template-areas:"np ctl ctl" "pbar pbar vol" "sub sub sub";column-gap:16px}
+  footer .ctl{gap:18px}footer .vol{margin-top:4px;min-width:0}footer #vdn,footer #vup{display:none}
+}
+html[data-theme=light] #side .brand,html[data-theme=light] #side button.on{color:#1d1b24;-webkit-text-fill-color:initial}
+html[data-theme=light] #side button.on{background:#1d1b24;color:#fff}
+html[data-theme=dark] #side button.on{background:#2d2840;box-shadow:none}
+/* ---------- 歌词解读面板 ---------- */
+.aibtn{top:136px}
+.aip{position:fixed;z-index:60;right:0;top:0;bottom:0;width:min(440px,100vw);transform:translateX(105%);transition:transform .3s ease;background:var(--glass2);border-left:1px solid var(--line);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);display:flex;flex-direction:column;padding:14px 16px calc(14px + env(safe-area-inset-bottom))}
+.aip.on{transform:none;box-shadow:-20px 0 60px rgba(0,0,0,.45)}
+@media (max-width:819px){.aip{top:auto;left:0;width:100%;height:78vh;border-left:none;border-top:1px solid var(--line);border-radius:20px 20px 0 0;transform:translateY(105%)}}
+.aih{display:flex;align-items:center;gap:10px;margin-bottom:8px}.aih b{flex:1;font-size:17px}.aih .x{background:none;border:none;color:var(--mut);font-size:18px;padding:4px 8px}
+.aimc{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:5px}
+.aib{flex:1;overflow-y:auto;padding:6px 2px 10px;font-size:14.5px;line-height:1.75}
+.aib h4{margin:14px 0 4px;font-size:12.5px;color:var(--acc2);letter-spacing:1px;font-weight:600}.aib h4:first-child{margin-top:4px}
+.aib p{margin:0 0 6px}.aib .q{padding:8px 12px;border-left:3px solid var(--acc);background:rgba(255,255,255,.04);border-radius:0 10px 10px 0;margin:6px 0 10px}
+.aib .img{display:flex;gap:8px;margin:4px 0}.aib .img b{color:var(--acc3);flex:none}
+.aib ul{margin:4px 0 6px;padding-left:20px}
+.aib .ld{color:var(--mut);text-align:center;margin-top:30%}.aib .er{color:var(--bad)}
+.npo .top .npai{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:999px;padding:6px 12px;font-size:13px;min-width:44px}
 </style>
 </head>
 <body>
 <canvas id="sky"></canvas>
-<header><h1>群星音乐</h1><span id="conn" style="font-size:12px;color:var(--mut)"><span class="dot"></span>连接中</span><button class="gear" id="gear" aria-label="设置"></button></header>
-<div class="tabs"><button data-t="lyrics" class="on">歌词</button><button data-t="lib">曲库</button><button data-t="pl">歌单</button><button data-t="queue">队列</button><button data-t="xfer">传输</button><button data-t="meta">整理</button></div>
+<aside id="side" aria-label="导航">
+  <div class="brand">群星音乐</div>
+  <div class="ng">听歌</div><button data-p="lyrics"></button><button data-p="queue"></button>
+  <div class="ng">资料库</div><button data-p="lib"></button><button data-p="pl"></button>
+  <div class="ng">导入</div><button data-p="inbox"></button><button data-p="xfer"></button>
+  <div class="ng">整理</div><button data-p="meta"></button><button data-p="albums"></button><button data-p="flac"></button>
+  <div style="flex:1"></div><button data-p="set"></button>
+</aside>
+<header><h1 id="ptitle">群星音乐</h1><span id="conn" style="font-size:12px;color:var(--mut)"><span class="dot"></span>连接中</span><button class="gear" id="gear" aria-label="设置"></button></header>
 <main>
   <section id="s-lyrics" class="on"><div id="lyr"><p class="note">还没有在播的歌。去「曲库」或「歌单」点一首</p></div></section>
   <section id="s-lib"><div class="crumb" id="crumb"></div><div class="bar2" id="libbar"></div><div id="list" class="list"></div></section>
   <section id="s-pl"><div id="plview"></div></section>
   <section id="s-queue"><div class="bar2"><button class="btn sm" onclick="qClear()">清空队列（保留正在放的）</button></div><div id="qlist" class="list"></div></section>
-  <section id="s-meta"><div class="seg" id="mseg"><button class="btn sm on" data-k="missing">缺信息的歌</button><button class="btn sm" data-k="imports">新导入</button><button class="btn sm" data-k="dir">选文件夹</button><button class="btn sm" data-k="albums">专辑缺歌</button></div><div id="mview"></div></section>
+  <section id="s-meta"><div class="seg" id="mseg"><button class="btn sm on" data-k="missing">缺信息的歌</button><button class="btn sm" data-k="imports">新导入</button><button class="btn sm" data-k="dir">选文件夹</button></div><div id="mview"></div></section>
   <section id="s-xfer"><div class="crumb" id="fcrumb"></div><div class="bar2"><button class="btn pri" onclick="$('#upf').click()">⬆ 上传到这里</button><button class="btn" onclick="mkdir()">新建文件夹</button><button class="btn" onclick="fls()">刷新</button><input id="upf" type="file" multiple hidden></div>
     <div id="jobs"></div><div id="flist" class="list"></div>
     <p class="hint" id="xhint">传输经过电脑上的群星中转：这台设备 ⇄ 群星 ⇄ CA1000T。需要 CA1000T 开着 AK File Drop、不息屏。</p></section>
 </main>
 <footer>
-  <div class="np"><div class="disc" id="disc"><img id="art" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'"></div><div class="t"><b id="tt">—</b><span id="ta"></span></div></div>
+  <div class="np"><div class="disc" id="disc" role="button" tabindex="0" aria-label="打开播放页" onclick="npOpen()"><img id="art" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'"></div><div class="t"><b id="tt">—</b><span id="ta"></span></div></div>
   <div class="pbar"><span id="cur">0:00</span><input id="seek" type="range" min="0" max="100" value="0" step="1"><span id="dur">0:00</span></div>
-  <div class="ctl"><button id="mode" class="side" aria-label="播放顺序"></button><button id="prev" aria-label="上一首"></button><button id="pp" class="big" aria-label="播放/暂停"></button><button id="next" aria-label="下一首"></button><button id="sleep" class="side" aria-label="睡眠定时"></button></div>
+  <div class="ctl"><button id="mode" class="side" aria-label="播放顺序"></button><button id="prev" aria-label="上一首"></button><button id="pp" class="big" aria-label="播放/暂停"></button><button id="next" aria-label="下一首"></button><button id="sleep" class="side" aria-label="睡眠定时"></button><button id="vtog" aria-label="音量"></button></div>
   <div class="sub" id="subline"></div>
   <div class="vol"><button id="vmute" aria-label="静音"></button><button id="vdn" aria-label="小声"></button><input id="vol" type="range" min="0" max="100" step="1"><button id="vup" aria-label="大声"></button><b id="volv">–</b><button id="loud" class="pill" aria-label="响度">响度</button></div>
 </footer>
+<nav id="bnav" aria-label="导航"><button data-p="lyrics"></button><button data-p="lib"></button><button data-p="pl"></button><button data-p="inbox"></button><button data-p="more"></button></nav>
 <div class="sheet" id="sheet" onclick="if(event.target===this)closeSheet()"><div class="box" id="sheetbox"></div></div>
 <div class="toast" id="toast"></div>
-<button class="lyrbtn hide" id="lyrbtn">换歌词</button>
+<button class="lyrbtn hide" id="lyrbtn">换歌词</button><button class="lyrbtn aibtn hide" id="aibtn">✦ 解读</button>
+<div class="aip" id="aip" aria-label="歌词解读"><div class="aih"><b>歌词解读</b><label class="aimc"><input type="checkbox" id="aimirror"> 联系我的近况</label><button class="x" id="aix" aria-label="关闭">✕</button></div><div class="seg" id="aiseg"><button class="btn sm on" data-a="song">整首意境</button><button class="btn sm" data-a="line">这一句</button><button class="btn sm" data-a="me">照进自己</button></div><div class="aib" id="aibody"></div></div>
 <div class="wcard" id="wcard"></div>
+<div class="npo sA" id="npo" aria-label="播放页">
+  <div class="bgb" id="npbg" aria-hidden="true"></div><div class="dim" aria-hidden="true"></div>
+  <div class="top"><button class="x" id="npx" aria-label="收起播放页"></button><div class="sty" id="npsty"><button data-s="A">黑胶</button><button data-s="B">歌词视频</button><button data-s="C">CD</button><button data-s="D">星空</button></div><button class="npai" id="npai" aria-label="解读歌词">✦ 解读</button></div>
+  <div class="stage" id="npst"></div>
+  <button class="back" id="npback">回到当前这句</button>
+  <div class="bar"><div class="pg" id="nppg"><i id="nppgi"></i></div><div class="tm"><span id="npt1">0:00</span><span id="npt2">0:00</span></div>
+    <div class="bt"><button id="npprev" aria-label="上一首"></button><button id="nppp" class="pp" aria-label="播放或暂停"></button><button id="npnext" aria-label="下一首"></button></div></div>
+</div>
 <script>
 const QS = new URLSearchParams(location.search), K = QS.get('k') || '';
 if (QS.get('embed')) { document.documentElement.style.background = document.body.style.background = 'transparent'; document.body.classList.add('embed'); document.querySelector('header h1').style.visibility = 'hidden'; }
@@ -186,6 +434,16 @@ const IC = {
   shuffle: SV('<path d="M4 7h3.2c1.6 0 3 .8 3.9 2.1l1.8 2.8c.9 1.3 2.3 2.1 3.9 2.1H20"/><path d="M17.5 11.5L20 14l-2.5 2.5"/><path d="M4 17h3.2c1 0 1.9-.3 2.6-.9"/><path d="M14 8c.7-.6 1.6-1 2.6-1H20"/><path d="M17.5 4.5L20 7l-2.5 2.5"/>'),
   moon: SV('<path d="M19.5 14.8A7.8 7.8 0 0 1 9.2 4.5a7.8 7.8 0 1 0 10.3 10.3z"/>'),
   gear: SV('<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>'),
+  n_play: SV('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5"/>'),
+  n_queue: SV('<path d="M4 6.5h12M4 11.5h12M4 16.5h7"/><path d="M15 15v4.5l4-2.25z" fill="currentColor"/>'),
+  n_lib: SV('<path d="M5 4.5v15M9 4.5v15"/><path d="M13 5.2l3.2-.9 3.6 14.6-3.2.9z"/>'),
+  n_pl: SV('<path d="M4 6h10M4 10.5h10M4 15h6"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="M19 16.5V6.5l2-.8"/>'),
+  n_in: SV('<path d="M12 4v10"/><path d="M8 10.5l4 4 4-4"/><path d="M4.5 14.5v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/>'),
+  n_xfer: SV('<path d="M7.5 19.5v-14M4.5 8.5l3-3 3 3"/><path d="M16.5 4.5v14M13.5 15.5l3 3 3-3"/>'),
+  n_meta: SV('<path d="M4.5 19.5L15 9"/><path d="M14 4.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/><path d="M19 11.5l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z"/>'),
+  n_album: SV('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 9v-.01"/>'),
+  n_flac: SV('<path d="M3.5 12h2l2-5 3 10 3-12 3 9 2-2h2"/>'),
+  n_more: SV('<circle cx="6" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18" cy="12" r="1.3" fill="currentColor"/>'),
   minus: SV('<path d="M7 12h10"/>'), plus: SV('<path d="M7 12h10M12 7v10"/>'),
   vol0: SV('<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>'),
   vol1: SV('<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.8a3.2 3.2 0 0 1 0 4.4"/>'),
@@ -195,19 +453,41 @@ const volIcon = v => v ? (v < 50 ? IC.vol1 : IC.vol2) : IC.vol0;
 $('#prev').innerHTML = IC.prev; $('#next').innerHTML = IC.next; $('#pp').innerHTML = IC.play;
 $('#gear').innerHTML = IC.gear; $('#vdn').innerHTML = IC.minus; $('#vup').innerHTML = IC.plus; $('#vmute').innerHTML = IC.vol1;
 
-/* ---------- 标签页 ---------- */
-let curTab = 'lyrics';
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-  curTab = b.dataset.t;
-  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === 's-' + curTab));
+/* ---------- 导航：平板 / 电脑是左边的侧边栏，手机是底部的标签栏（像 Apple Music、Spotify 那样） ---------- */
+// 每一页：[对应的内容区, 标题, 图标, （整理类页面的子视图）]
+const PAGES = {
+  lyrics: ['lyrics', '正在播放', 'n_play'], queue: ['queue', '队列', 'n_queue'],
+  lib: ['lib', '曲库', 'n_lib'], pl: ['pl', '歌单', 'n_pl'],
+  inbox: ['meta', '导入新歌', 'n_in', 'inbox'], xfer: ['xfer', '文件传输', 'n_xfer'],
+  meta: ['meta', '补全信息', 'n_meta'], albums: ['meta', '专辑缺歌', 'n_album', 'albums'], flac: ['meta', '转成 flac', 'n_flac', 'flac'],
+  set: [null, '设置', 'gear'], more: [null, '更多', 'n_more'] };
+const SHORT = { lyrics: '播放', inbox: '导入' };
+document.querySelectorAll('[data-p]').forEach(b => { const d = PAGES[b.dataset.p]; const inBnav = b.closest('#bnav'); b.innerHTML = IC[d[2]] + '<span>' + (inBnav && SHORT[b.dataset.p] || d[1]) + '</span>' + (b.dataset.p === 'inbox' ? '<i class="inbadge"></i>' : ''); b.onclick = () => nav(b.dataset.p); });
+let curTab = 'lyrics', curPage = 'lyrics';
+function nav(p) {
+  if (p === 'set') return $('#gear').click();
+  if (p === 'more') return sheet('更多', [['队列', () => nav('queue'), '接下来要放的歌'], ['文件传输', () => nav('xfer'), '手动在这台设备和播放器之间传文件'], ['补全信息', () => nav('meta'), '缺歌名、歌手、专辑、封面的歌'], ['专辑缺歌', () => nav('albums'), '对照专辑曲目表看缺哪几首'], ['转成 flac', () => nav('flac'), '播放器放不了 m4a'], ['设置', () => $('#gear').click()]]);
+  const d = PAGES[p]; if (!d) return;
+  curPage = p; curTab = d[0];
+  const MORE = ['queue', 'xfer', 'meta', 'albums', 'flac'];
+  document.querySelectorAll('#side [data-p]').forEach(x => x.classList.toggle('on', x.dataset.p === p));
+  document.querySelectorAll('#bnav [data-p]').forEach(x => x.classList.toggle('on', x.dataset.p === p || (x.dataset.p === 'more' && MORE.includes(p))));
+  $('#ptitle').textContent = d[1];
+  document.querySelectorAll('main>section').forEach(s => s.classList.toggle('on', s.id === 's-' + curTab));
+  try { localStorage.setItem('sm_page', p); } catch (e) {}
   if (curTab === 'queue') loadQueue();
   if (curTab === 'lyrics') scrollLyr(true);
   lyrBtn();
   if (curTab === 'pl' && !plLoaded) plHome();
   if (curTab === 'xfer' && !fLoaded) fls();
-  if (curTab === 'meta' && !mLoaded) mHome();
-});
+  if (curTab === 'meta') {
+    if (d[3]) mKind = d[3]; else if (!['missing', 'imports', 'dir'].includes(mKind)) mKind = 'missing';
+    $('#mseg').style.display = d[3] ? 'none' : '';   // 导入、专辑缺歌、转 flac 是单独的页面，不再挤在「整理」的小按钮里
+    mHome();
+  }
+}
+function goTab(t) { nav(t); }
+$('#vtog').innerHTML = IC.vol1; $('#vtog').onclick = () => document.querySelector('footer').classList.toggle('v');
 
 /* ---------- 操作菜单 ---------- */
 function sheet(title, opts) {
@@ -438,13 +718,14 @@ function parseLrc(t) {
   for (const ln of String(t).split(/\r?\n/)) { const ts = [...ln.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]; const txt = ln.replace(/\[[^\]]*\]/g, '').trim(); for (const m of ts) out.push({ t: +m[1] * 60 + +m[2], txt }); }
   return out.sort((a, b) => a.t - b.t);
 }
-let LJ = null, SET = { wordTap: true, showTrans: true, autoLists: true }, VOCAB = false;
+let LJ = null, SET = { wordTap: true, showTrans: true, autoLists: true, npFollow: true, asr: true, aiMirror: true }, VOCAB = false;
 api('settings').then(j => { SET = j.settings; VOCAB = j.vocab; }).catch(() => {});
-function lyrBtn() { $('#lyrbtn').classList.toggle('hide', curTab !== 'lyrics' || !(S && S.cur)); }
+function lyrBtn() { const h = curTab !== 'lyrics' || !(S && S.cur); $('#lyrbtn').classList.toggle('hide', h); $('#aibtn').classList.toggle('hide', h || !(LJ && LJ.found)); }
 const hasEn = t => /[A-Za-z]{2,}/.test(t);
 // 英文单词包成可点的小块（开关在设置里）
 function wordsHtml(t) { if (!SET.wordTap || !hasEn(t)) return esc(t); return esc(t).replace(/[A-Za-z][A-Za-z'’\-]*[A-Za-z]|[A-Za-z]/g, w => w.length > 1 ? `<span class="w">${w}</span>` : w); }
-function transMap(tr) { const m = new Map(); for (const l of parseLrc(tr || '')) if (l.txt) m.set(l.t.toFixed(2), l.txt); return m; }
+// 翻译按时间对上原句：时间完全一样最好，差一点（不同来源的时间轴会差几百毫秒）也认最近的那句
+function transMap(tr) { const L = parseLrc(tr || '').filter(l => l.txt && l.t >= 0).sort((a, b) => a.t - b.t); return { get(k) { const t = +k; let best = null, bd = 1.2; for (const l of L) { const d = Math.abs(l.t - t); if (d < bd) { bd = d; best = l.txt; } if (l.t > t + 1.2) break; } return best; } }; }
 async function loadLyrics(force) {
   if (!S || !S.cur) return;
   if (!force && lyrFor === S.cur.url) return;
@@ -452,7 +733,8 @@ async function loadLyrics(force) {
   try {
     const j = await api('lyrics');
     if (lyrFor !== (S.cur && S.cur.url)) return;
-    drawLyrics(j);
+    drawLyrics(j); lyrBtn();
+    if (j.asr === 'running' || j.asr === 'queued') { const u = lyrFor; setTimeout(() => { if (lyrFor === u) loadLyrics(true); }, 8000); }   // 正在听写：过一会儿再来问
   } catch (e) { $('#lyr').innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
 }
 function drawLyrics(j) {
@@ -460,6 +742,7 @@ function drawLyrics(j) {
   if (j.needT2S) j = Object.assign({}, j, { text: T2Sc(j.text || ''), trans: T2Sc(j.trans || '') });
   const fix = '<br><button class="btn sm" style="margin-top:12px" onclick="lyrSearch()">自己搜歌词</button>';
   if (j.hidden) { $('#lyr').innerHTML = '<p class="note">这首设成了不显示歌词' + fix.replace('自己搜歌词', '换一个 / 恢复') + '</p>'; return; }
+  if (!j.found && j.asr) { $('#lyr').innerHTML = `<p class="note">两个歌词站都没有这首<br><small>正在用电脑离线听写歌词（一般 1 分钟内），好了会自动显示</small>${fix}</p>`; return; }
   if (!j.found) { $('#lyr').innerHTML = `<p class="note">没找到这首的歌词<br><small>${esc(j.q ? (j.q.artist ? j.q.artist + ' - ' : '') + j.q.title : '')}</small>${j.err ? '<br><small>' + esc(j.err) + '</small>' : ''}${fix}</p>`; return; }
   if (j.instrumental && !j.text) { $('#lyr').innerHTML = '<p class="note">纯音乐，请欣赏</p>'; return; }
   synced = j.synced;
@@ -467,11 +750,14 @@ function drawLyrics(j) {
   const TM = SET.showTrans && j.trans ? transMap(j.trans) : null;
   $('#lyr').innerHTML = lines.map((l, i) => { const tr = TM && TM.get(l.t.toFixed(2)); return `<p data-i="${i}">${wordsHtml(l.txt) || '&nbsp;'}${tr && tr !== l.txt ? '<span class="tr">' + esc(tr) + '</span>' : ''}</p>`; }).join('')
     + `<p class="note" style="font-size:11px">${synced ? '' : '（这首只有不带时间的歌词）'}来源：${esc(j.src)}${j.chosen ? '（你选的）' : ''}${j.approx ? ` · 这一版和你的文件时长差 ${Math.abs(j.approx)} 秒，时间轴可能对不上，可以点右上角「换歌词」` : ''}${SET.wordTap && hasEn(j.text) ? ' · 点英文单词查释义' : ''}</p>`;
+  let clickT = null;
   $('#lyr').querySelectorAll('p[data-i]').forEach(p => p.onclick = ev => {
     const w = ev.target.closest('.w'); if (w) { ev.stopPropagation(); return wordTap(w, lines[+p.dataset.i].txt); }
-    if (synced) seek(lines[+p.dataset.i].t);
+    // 单击：打开播放页（黑胶 / 歌词视频 / CD / 星空）；双击：跳到这一句
+    if (ev.detail >= 2) { clearTimeout(clickT); if (synced) seek(lines[+p.dataset.i].t); return; }
+    clearTimeout(clickT); clickT = setTimeout(npOpen, 260);
   });
-  lastIdx = -1; scrollLyr(true);
+  lastIdx = -1; scrollLyr(true); NP.idx = -2;
 }
 $('#lyrbtn').onclick = () => lyrSearch();
 async function lyrSearch(t, a) {
@@ -508,13 +794,14 @@ document.addEventListener('click', e => { if ($('#wcard').classList.contains('on
 /* ---------- 整理：补全歌曲信息、专辑缺歌 ---------- */
 const MPRE = '/storage/emulated/0';
 let recentUp = [], mLoaded = false, mKind = 'missing', mDir = '/Music/待分类', mItems = [], mSel = new Set(), mProp = null, mPoll = null;
-function goTab(t) { const b = document.querySelector('.tabs button[data-t="' + t + '"]'); if (b) b.click(); }
 document.querySelectorAll('#mseg button').forEach(b => b.onclick = () => { mKind = b.dataset.k; mHome(); });
 const shortP = p => String(p).replace(MPRE + '/Music/', '').replace(MPRE, '');
 async function mHome() {
   mLoaded = true; mProp = null; document.querySelectorAll('#mseg button').forEach(b => b.classList.toggle('on', b.dataset.k === mKind));
   const V = $('#mview');
   if (mKind === 'albums') return mAlbums();
+  if (mKind === 'inbox') return inHome();
+  if (mKind === 'flac') return flacHome();
   if (mKind === 'dir') {
     V.innerHTML = `<div class="lsr"><input id="mdir" value="${esc(mDir)}"><button class="btn" id="mdirgo">列出</button></div><p class="hint">播放器上的文件夹，比如 /Music/待分类、/Music/纯音乐</p><div id="mlist"></div>`;
     $('#mdirgo').onclick = () => { mDir = $('#mdir').value.trim() || '/'; mLoad(); };
@@ -655,16 +942,352 @@ async function mAlbum(a) {
   } catch (e) { V.innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; }
 }
 
+
+/* ---------- 导入文件夹：电脑上放新歌的文件夹（比如网易云下载 / 解码后的文件夹） ---------- */
+const IN_ST = { pw: ['要解压密码', 'lo'], zip7: ['rar：手机上解不了', 'lo'], zip: ['压缩包，等解压', ''], unzipping: ['正在解压', 'ok'], unzipped: ['已解压，里面的歌在下面', 'ok'], new: ['新的', ''], old: ['原来就有', 'lo'], wait: ['等下载完…', ''], up: ['正在传', 'ok'], done: ['已传到播放器', 'ok'], err: ['失败', 'lo'], locked: ['加密格式，播放器放不了', 'lo'], skip: ['已忽略', 'lo'] };
+let inSel = new Set(), inPoll = null, inShowOld = false;
+async function inHome() {
+  const V = $('#mview'); V.innerHTML = '<p class="hint">读取中…</p>';
+  try { inDraw(await api('inbox')); } catch (e) { V.innerHTML = '<p class="hint" style="color:var(--bad)">' + esc(e.message) + '</p>'; }
+}
+// 导入文件夹的“它在做什么”：流程条（跟着实时状态亮）+ 常见问题
+function inFlow(j) {
+  const c = j.cfg, I = j.items || [], cnt = j.counts || {}, PH = c.phone, now = j.now || Date.now();
+  const upItem = I.find(x => x.state === 'up'), recent = I.find(x => x.state === 'done' && now - (x.at || 0) < 120e3);
+  const stepNow = upItem ? (upItem.step || j.step || '传到播放器') : '';
+  const S = [
+    ['1', PH ? '网易云下载' : '放进文件夹', PH ? '你在网易云点「下载」，歌存进手机' : '把解码好的歌放进导入文件夹'],
+    ['2', '发现新歌', PH ? '系统媒体库一登记，群星音乐在后台就知道了' : '每分钟看一次文件夹'],
+    ['3', '等下载完', '文件大小不再变化才动它，下到一半的不碰'],
+    ['4', '补信息', c.tag ? '查歌名 / 歌手 / 专辑 / 封面，把握大的写进副本，原文件不改' : '已关闭：原样传'],
+    ['5', '传到播放器', '通过播放器的 File Drop 传到 ' + c.target],
+  ];
+  let on = -1;
+  if (cnt.wait) on = 2;
+  if (upItem) on = /查|读|补|标签/.test(stepNow) ? 3 : 4;
+  const done = !upItem && recent ? 5 : -1;
+  const html = '<div class="flow">' + S.map((x, i) => `<div class="st ${i === on ? 'on' : (done > i || (on > i && i >= 1) ? 'ok' : '')}"><b><i>${(done > i || (on > i && i >= 1)) ? '✓' : x[0]}</i>${x[1]}</b>${i === on && upItem ? '<small>正在处理：' + esc(upItem.name) + '</small>' : '<small>' + x[2] + '</small>'}</div>`).join('') + '</div>';
+  return html;
+}
+function inFaq(j) {
+  const c = j.cfg, PH = c.phone;
+  const faq = `<details class="faq faqq" ${localStorage.getItem('sm_in_faq') === '1' ? 'open' : ''}><summary>它是怎么做到的？会不会乱传？</summary><dl>
+    <dt>要一直开着群星音乐吗？</dt><dd>${PH ? '不用开着页面。群星音乐有一个常驻通知（就是播放控制那条），它在就会一直看着。被系统清掉后台的话，下次打开 App 会补查一遍，漏不了。' : '电脑版 / 群星开着就行，每分钟查一次。'}</dd>
+    <dt>怎么知道哪些是新下的？</dt><dd>第一次设文件夹时，里面已有的歌记成「原来就有」，不会自动传（可以在下面展开手动传）。之后出现的才算新歌。文件夹改了也一样，新加的文件夹里原有的歌先记成「原来就有」。</dd>
+    <dt>会重复传吗？</dt><dd>不会。每首按路径 + 大小 + 修改时间记一笔，传过就是「已传到播放器」。同一首删了重新下，算新的。</dd>
+    <dt>原文件会被改吗？</dt><dd>不会。补信息是在一份临时副本上写，写完核对声音部分一个字节都没变，再传这份副本；${PH ? '手机' : '电脑'}里的原文件原封不动。</dd>
+    <dt>补信息查不到 / 拿不准怎么办？</dt><dd>原样传，不乱改。行上会写「没查到」或「拿不准，没改」，之后可以在「缺信息的歌」里手动挑。</dd>
+    <dt>会联网发什么？</dt><dd>只有查资料这一步：把歌名、歌手、时长发给网易云和 Apple Music 的公开搜索。歌曲文件只在${PH ? '手机' : '电脑'}和播放器之间走家里的局域网，不经过任何服务器。</dd>
+    <dt>会员歌（.ncm）呢？</dt><dd>.ncm 是加密的，播放器放不了，这里只标「加密格式」不传。你自己解码成 flac / mp3 放进同一个文件夹，就会按新歌处理。</dd>
+    <dt>压缩包呢？</dt><dd>${PH ? '.zip、.7z 在手机上就能解（第一次要在「百度网盘」卡片里允许读一个文件夹）；rar 手机上解不了，在网盘里「解压到网盘」后再下，或放进电脑版的导入文件夹。' : '.zip 直接解（中文文件名不乱码）；.7z / .rar 要电脑装了 7-Zip。解到同目录的「_解压/包名/」，里面的歌按新歌处理。'}</dd>
+    <dt>传完在哪？</dt><dd>播放器的 ${esc(c.target)}。播放器自己更新曲库后才会出现在「曲库」里；新传的歌也会出现在「整理 → 新导入」。</dd>
+  </dl></details>`;
+  return faq;
+}
+// 百度网盘：分享链接 → 网盘 App 里保存 / 下载 → 下完的歌（压缩包先解开）自动补信息、传到播放器
+function bdParse(t) {
+  const m = /https?:\/\/pan\.baidu\.com\/(?:s\/([\w-]+)|share\/init\?surl=([\w-]+))/.exec(t || ''); if (!m) return null;
+  const pw = /(?:[?&]pwd=|提取码|密码|验证码|code)[\s:：=]*([A-Za-z0-9]{4})/.exec(t);
+  return { link: 'https://pan.baidu.com/s/' + (m[1] || '1' + m[2]) + (pw ? '?pwd=' + pw[1] : ''), pwd: pw ? pw[1] : '' };
+}
+function inBaidu(j) {
+  const c = j.cfg, PH = c.phone, bdIn = (c.dirs || []).some(d => /baidunetdisk/i.test(d));
+  return `<div class="job srcc"><div class="nm"><b>百度网盘</b>${PH && !j.baidu ? '<span class="chip lo">没装百度网盘 App</span>' : ''}</div>
+    <p class="hint">${PH ? '粘贴别人发的分享（链接 + 提取码，整段粘也行）→ 在网盘里点「下载」→ 下完这里自动接手（压缩包先解开）。' : '粘贴分享 → 打开分享页，在网页或网盘客户端里下载到导入文件夹。'}</p>
+    <div class="lsr"><input id="bdlink" placeholder="https://pan.baidu.com/s/1xxxx 提取码: abcd"><button class="btn pri" id="bdgo">${PH ? '用网盘打开' : '打开分享页'}</button></div>
+    ${PH ? `<p class="hint" style="margin:4px 2px 0">${j.tree ? '读压缩包的文件夹：<b>' + esc(j.tree) + '</b>（zip、7z 自动解；rar 不行）<a href="#" id="bdtree2">换一个</a>' : '还没允许读压缩包（见上面「要你处理」）'}${j.pwN ? ' · 已存 ' + j.pwN + ' 个解压密码 <a href="#" id="bdpwadd">再加一个</a>' : ''}</p>` : ''}
+    ${PH && !bdIn ? '<p class="hint" style="color:var(--bad)">「设置」的文件夹里没有 BaiduNetdisk：网盘下的散装歌不会被发现。</p>' : ''}
+    <p class="hint" style="margin:4px 2px 0;opacity:.75">不碰你的百度账号，也不绕开限速或会员：下载都由你在网盘里自己点。</p></div>`;
+}
+function inBaiduWire(j) {
+  $('#bdgo').onclick = () => {
+    const t = $('#bdlink').value, r = bdParse(t); if (!r) return toast('没认出百度网盘的分享链接（应该像 https://pan.baidu.com/s/1xxxx）');
+    if (!j.cfg.phone) { window.open(r.link, '_blank'); return toast(r.pwd ? '提取码 ' + r.pwd + ' 已带在链接里' : '没看到提取码：页面要的话自己填'); }
+    api('inbox/baidu', { text: t }).then(x => toast(x.app ? '已复制分享，正在打开百度网盘：它会弹「查看复制的分享链接」' + (x.pwd ? '（提取码 ' + x.pwd + ' 已带上）' : '') : '没装百度网盘 App，用浏览器打开了')).catch(e => toast(e.message));
+  };
+  const pick = e => { if (e) e.preventDefault(); if (window.StarryApp && StarryApp.pickTree) StarryApp.pickTree('Download/BaiduNetdisk'); else toast('要新版 App'); };
+  if ($('#bdtree')) $('#bdtree').onclick = () => pick(); if ($('#bdtree2')) $('#bdtree2').onclick = pick;
+  const savePw = v => api('inbox/pw', { pw: v.split(/\s+/).filter(Boolean).join('\n') }).then(j2 => { toast('存好了：要密码的压缩包会用它重新解'); inDraw(j2); }).catch(e => toast(e.message));
+  if ($('#bdpwok')) $('#bdpwok').onclick = () => { const v = $('#bdpw').value.trim(); if (!v) return toast('先填密码'); savePw(v); };
+  if ($('#bdpwadd')) $('#bdpwadd').onclick = e => { e.preventDefault(); const v = prompt('再加一个解压密码'); if (v && v.trim()) savePw(v.trim()); };
+  window.onTreePicked = ok => { toast(ok ? '好了：这个文件夹里新下的压缩包会自动解开' : '没选文件夹'); if (ok) api('inbox/scan', {}).then(inDraw).catch(() => inHome()); };
+}
+function inRow(x, sel) {
+  const tg = x.tagged ? '<span class="chip ok">补了：' + esc(Object.keys(x.tagged).map(k => ({ title: '歌名', artist: '歌手', album: '专辑', track: '曲序', year: '年份', cover: '封面' })[k] || k).join('、')) + '</span>' : '';
+  const ck = sel ? `<input type="checkbox" class="ck" data-p="${esc(x.path)}" ${inSel.has(x.path) ? 'checked' : ''}>` : '<span class="ckph"></span>';
+  return `<label class="row inr st-${x.state}">${ck}<div class="t"><b>${esc(x.name)}</b><span>${x.size ? fsz(x.size) + ' · ' : ''}${esc(x.dir)}</span><div><span class="chip ${(IN_ST[x.state] || [])[1] || ''}">${(IN_ST[x.state] || [x.state])[0]}${x.state === 'unzipped' && x.n >= 0 ? '（' + x.n + ' 首）' : ''}</span>${x.state === 'up' && x.step ? '<span class="chip ok">正在：' + esc(x.step) + '</span>' : ''}${x.conv && x.state === 'done' ? '<span class="chip ok">m4a → flac</span>' : ''}${tg}${x.state === 'done' && !x.tagged && x.why ? '<span class="chip">' + esc(x.why) + '</span>' : ''}${x.err && !['pw', 'zip7'].includes(x.state) ? '<span class="chip lo">' + esc(x.err) + '</span>' : ''}${x.state === 'done' && x.to ? '<span class="chip">→ ' + esc(x.to) + '</span>' : ''}</div></div></label>`;
+}
+let inShowDone = false;
+function inDraw(j) {
+  const V = $('#mview'), c = j.cfg, I = j.items || [], cnt = j.counts || {}, PH = c.phone, WHERE = PH ? '手机' : '电脑';
+  const now = j.now || Date.now(), ago = j.lastScan ? Math.max(0, Math.round((now - j.lastScan) / 1000)) : -1;
+  const agoT = ago < 0 ? '还没查过' : ago < 60 ? ago + ' 秒前查过' : Math.round(ago / 60) + ' 分钟前查过';
+  const BUSY = ['up', 'unzipping', 'wait'], TODO = ['new', 'err', 'pw', 'zip7', 'zip'];
+  const MODE0 = c.mode || (c.auto ? 'auto' : 'list'), goes = x => c.auto || x.ok;   // 自动传，或者你点过“传”的：会自己往下走
+  const busyL = I.filter(x => BUSY.includes(x.state)), todoL = I.filter(x => TODO.includes(x.state) && !(['new', 'zip'].includes(x.state) && (goes(x) || MODE0 === 'ask'))), doneL = I.filter(x => ['done', 'unzipped'].includes(x.state)), restL = I.filter(x => ['old', 'skip', 'locked'].includes(x.state));
+  // 自动传开着时，新的歌和等解压的压缩包马上就会被处理，算“处理中”
+  I.filter(x => ['new', 'zip'].includes(x.state) && goes(x)).forEach(x => busyL.push(x));
+  [...inSel].forEach(p => { if (!todoL.concat(inShowOld ? restL : []).some(x => x.path === p)) inSel.delete(p); });
+  const n = k => cnt[k] || 0;
+  // ---- 1. 总开关 + 数字 ----
+  const MODE = c.mode || (c.auto ? 'auto' : 'list');
+  const state = j.needPerm ? `<b style="color:var(--bad)">还看不到${WHERE}里的音乐</b>：到 系统设置 → 应用 → 群星音乐 → 权限 → 音乐和音频，选「允许」`
+    : MODE === 'auto' ? `<b style="color:var(--ok)">自动传</b>：网易云、百度网盘下完的歌，会自己补好信息传到播放器的 <b>${esc(c.target)}</b>`
+    : MODE === 'ask' ? `<b style="color:var(--acc2)">先问我</b>：下完一首就弹通知问你「传到播放器吗？」，点「传」才传到 <b>${esc(c.target)}</b>`
+    : `<b>只列出来</b>：新歌只列在下面，等你点「传到播放器」`;
+  const hero = `<div class="job inhero"><div class="hrow"><div><div class="ht">自动传到播放器</div><div class="hs">${state}</div></div>
+      <div class="seg" id="inmode" style="margin:0;flex:none">${c.phone && c.mode ? [['ask', '先问我'], ['auto', '自动传'], ['list', '只列出']].map(([k, t]) => `<button class="btn sm ${MODE === k ? 'on' : ''}" data-m="${k}">${t}</button>`).join('') : `<label class="bigsw"><input type="checkbox" id="inauto" ${c.auto ? 'checked' : ''}><i></i></label>`}</div></div>
+    <div class="tiles">
+      <div class="tile ${busyL.length ? 'on' : ''}"><b>${busyL.length}</b><span>正在处理</span></div>
+      <div class="tile ${todoL.length ? 'warn' : ''}"><b>${todoL.length}</b><span>等你处理</span></div>
+      <div class="tile ok"><b>${n('done')}</b><span>已传到播放器</span></div>
+      <div class="tile"><b>${(c.dirs || []).length}<small> 个文件夹</small></b><span>${agoT} · <a href="#" id="inscan">现在查</a></span></div>
+    </div></div>`;
+  // ---- 2. 要你处理的事 ----
+  const acts = [];
+  if ((j.pending || []).length) acts.push(`<div class="act"><div><b>新下载了 ${j.pendingN || j.pending.length} 首，传到播放器吗？</b><small>${esc(j.pending.slice(0, 4).map(x => x.name.replace(/\.[a-z0-9]{2,5}$/i, '')).join('、'))}${(j.pendingN || 0) > 4 ? ' 等' : ''}</small></div><div style="display:flex;gap:6px;flex:none"><button class="btn" id="indecl">先不传</button><button class="btn pri" id="inappr">传到播放器</button></div></div>`);
+  if (n('pw')) acts.push(`<div class="act"><div><b>${n('pw')} 个压缩包要解压密码</b><small>分享页或发链接的人一般会写「解压密码：xxx」。填了会自动挨个试${j.pwN ? '（已存 ' + j.pwN + ' 个，都不对）' : ''}</small></div><div class="lsr" style="margin:0"><input id="bdpw" type="password" autocomplete="off" placeholder="解压密码，多个用空格隔开"><button class="btn pri" id="bdpwok">保存并解压</button></div></div>`);
+  if (PH && !j.tree) acts.push(`<div class="act"><div><b>还没允许读压缩包</b><small>网盘里的歌常打成 zip / 7z。点右边，在系统窗口里进到网盘的下载文件夹（BaiduNetdisk 或 Download/BaiduNetdisk），点「使用此文件夹」→「允许」</small></div><button class="btn pri" id="bdtree">允许读压缩包</button></div>`);
+  const newL = I.filter(x => x.state === 'new' && !goes(x)), errL = I.filter(x => x.state === 'err');
+  if (MODE0 === 'list' && newL.length) acts.push(`<div class="act"><div><b>${newL.length} 首新歌等你传</b><small>自动传关着。也可以在下面挑着传</small></div><button class="btn pri" id="inall">全部传到播放器</button></div>`);
+  if (errL.length) acts.push(`<div class="act"><div><b>${errL.length} 个失败了</b><small>${esc((errL[0].err || '').slice(0, 90))}${(errL[0].err || '').length > 90 ? '…' : ''}</small></div><button class="btn" id="inretry">重试</button></div>`);
+  if (n('zip7')) acts.push(`<div class="act"><div><b>${n('zip7')} 个 rar 手机上解不了</b><small>在百度网盘里点开它「解压到网盘」再下里面的歌，或者放进电脑版的导入文件夹</small></div></div>`);
+  const todoBox = acts.length ? `<div class="job intodo"><div class="nm"><b>要你处理</b></div>${acts.join('')}</div>` : '';
+  // ---- 3. 正在处理（流程条 + 列表） ----
+  const busyBox = busyL.length ? `<div class="job"><div class="nm"><b>正在处理</b><span class="hint" style="margin-left:8px">${c.auto ? '不用管，处理完会出现在「已传到播放器」' : ''}</span></div>${inFlow(j)}<div class="list">${busyL.slice(0, 30).map(x => inRow(x, false)).join('')}</div></div>` : '';
+  // ---- 4. 等你处理的列表（可勾选） ----
+  const listTodo = todoL.length || (inShowOld && restL.length) ? `<div class="job"><div class="nm"><b>等你处理</b><span class="hint" style="margin-left:8px">勾上要的，点下面「传到播放器」</span></div><div class="list">${todoL.concat(inShowOld ? restL : []).map(x => inRow(x, ['new', 'old', 'err', 'skip', 'zip', 'pw'].includes(x.state) && x.state !== 'pw')).join('')}</div></div>` : '';
+  // ---- 5. 已传 ----
+  const doneBox = doneL.length ? `<div class="job"><div class="nm"><b>已传到播放器</b><span class="hint" style="margin-left:8px">最近的在上面</span></div><div class="list">${doneL.slice(0, inShowDone ? 300 : 5).map(x => inRow(x, false)).join('')}</div>${doneL.length > 5 ? `<button class="btn sm" id="indone">${inShowDone ? '收起' : '看全部 ' + doneL.length + ' 条'}</button>` : ''}</div>` : '';
+  const empty = !busyL.length && !todoL.length && !doneL.length ? `<p class="hint" style="text-align:center;margin:14px 0">${(c.dirs || []).length ? '现在没有新歌。' + (PH ? '在网易云或百度网盘里下载' : '往文件夹里放歌') + '，几秒到一分钟内会出现在这里。' : '先在下面「来源」里填' + WHERE + '上放新歌的文件夹。'}</p>` : '';
+  // ---- 6. 来源 ----
+  const src = `<div class="nm" style="margin:16px 4px 6px"><b>来源</b></div><div class="srcs">
+    <div class="job srcc"><div class="nm"><b>网易云音乐</b></div><p class="hint">${PH ? '在网易云里点「下载」就行。会员歌是加密的 .ncm，要先自己解码成 flac / mp3 放进下面的文件夹。' : '把解码好的歌放进下面的文件夹。'}</p></div>
+    ${inBaidu(j)}</div>
+    <details class="faq" ${localStorage.getItem('sm_in_set') === '1' ? 'open' : ''} id="inset"><summary>设置：看哪些文件夹、补信息${restL.length ? '、原来就有的 ' + restL.length + ' 个' : ''}</summary>
+      <p class="hint" style="margin:8px 2px 4px">${WHERE}上要看的文件夹（多个用 ; 隔开）。新加的文件夹里原有的歌记成「原来就有」，不会自动传。</p>
+      <div class="lsr"><input id="indirs" value="${esc((c.dirs || []).join(' ; '))}" placeholder="${PH ? '例如 Download/netease/cloudmusic/Music' : '例如 D:\\Music\\网易云解码'}"><button class="btn" id="indirok">保存</button></div>
+      <label class="sw" style="border:none;padding:6px 4px"><span>传之前补信息<small>只写把握大的（${PH ? '手机上能写 flac、mp3' : '电脑上能写 flac、mp3、m4a、ogg、wav'}）；拿不准的原样传</small></span><input type="checkbox" id="intag" ${c.tag ? 'checked' : ''}></label>
+      ${restL.length ? `<button class="btn sm" id="inold">${inShowOld ? '收起原来就有的' : '把原来就有的 ' + restL.length + ' 个也列出来（可以手动传）'}</button>` : ''}
+    </details>`;
+  V.innerHTML = hero + todoBox + busyBox + listTodo + doneBox + empty + src + inFaq(j)
+    + `<div class="mbar"><span id="insel"></span><button class="btn sm" id="inign">忽略</button><button class="btn pri" id="ingo">传到播放器</button></div>`;
+  const upd = () => { const k = [...inSel]; $('#insel').textContent = '选了 ' + k.length + ' 个'; $('#ingo').textContent = k.some(p => p.startsWith('saf:')) ? '解压 / 传到播放器' : '传到播放器'; $('#insel').parentNode.style.display = k.length ? '' : 'none'; };
+  V.querySelectorAll('input.ck').forEach(i => i.onchange = e => { const p = i.dataset.p; e.target.checked ? inSel.add(p) : inSel.delete(p); upd(); });
+  const cfg = b => api('inbox/config', b).then(inDraw).catch(er => toast(er.message));
+  if ($('#inauto')) $('#inauto').onchange = e => cfg({ auto: e.target.checked }).then(() => toast(e.target.checked ? '开了：以后下完的歌会自己传到播放器' : '关了：新歌只列出来'));
+  V.querySelectorAll('#inmode [data-m]').forEach(b => b.onclick = () => cfg({ mode: b.dataset.m }).then(() => toast({ ask: '以后下完一首就问你要不要传', auto: '以后下完就自己传', list: '以后新歌只列出来' }[b.dataset.m])));
+  $('#intag').onchange = e => cfg({ tag: e.target.checked });
+  $('#indirok').onclick = () => api('inbox/config', { dirs: $('#indirs').value.split(/\s*;\s*/).filter(Boolean) }).then(j2 => { toast('已保存。新加的文件夹里已有的歌记为“原来就有”'); inSel.clear(); inDraw(j2); }).catch(e => toast(e.message));
+  const st = $('#inset'); st.ontoggle = () => { try { localStorage.setItem('sm_in_set', st.open ? '1' : '0'); } catch (e) {} };
+  if ($('#inold')) $('#inold').onclick = () => { inShowOld = !inShowOld; inDraw(j); };
+  if ($('#indone')) $('#indone').onclick = () => { inShowDone = !inShowDone; inDraw(j); };
+  $('#inscan').onclick = e => { e.preventDefault(); e.target.textContent = '查看中…'; api('inbox/scan', {}).then(j2 => { toast('查过了'); inDraw(j2); }).catch(er => { toast(er.message); inDraw(j); }); };
+  if ($('#inall')) $('#inall').onclick = () => api('inbox/upload', { all: true }).then(r => { toast('开始处理 ' + r.started + ' 首'); inHome(); }).catch(e => toast(e.message));
+  if ($('#inretry')) $('#inretry').onclick = () => { const L = errL.map(x => x.path), A = L.filter(p => p.startsWith('saf:')), S = L.filter(p => !p.startsWith('saf:'));
+    if (A.length) api('inbox/unzip', { paths: A }).catch(() => {}); if (S.length) api('inbox/upload', { paths: S }).then(r => toast('重试 ' + r.started + ' 个')).catch(e => toast(e.message)); setTimeout(inHome, 1200); };
+  inBaiduWire(j);
+  if ($('#inappr')) $('#inappr').onclick = () => api('inbox/approve', {}).then(j2 => { toast('好，开始传'); inDraw(j2); }).catch(e => toast(e.message));
+  if ($('#indecl')) $('#indecl').onclick = () => api('inbox/decline', {}).then(j2 => { toast('这几首先不传'); inDraw(j2); }).catch(e => toast(e.message));
+  const fq = V.querySelector('details.faqq'); if (fq) fq.ontoggle = () => { try { localStorage.setItem('sm_in_faq', fq.open ? '1' : '0'); } catch (e) {} };
+  $('#inign').onclick = () => api('inbox/ignore', { paths: [...inSel] }).then(j2 => { inSel.clear(); inDraw(j2); }).catch(e => toast(e.message));
+  $('#ingo').onclick = () => { if (!inSel.size) return toast('先勾选');
+    const arcs = [...inSel].filter(p => p.startsWith('saf:')), songs = [...inSel].filter(p => !p.startsWith('saf:'));
+    if (arcs.length) api('inbox/unzip', { paths: arcs }).then(() => toast('开始解压 ' + arcs.length + ' 个压缩包')).catch(e => toast(e.message));
+    arcs.forEach(p => inSel.delete(p));
+    if (!songs.length) return setTimeout(inHome, 1500);
+    api('inbox/upload', { paths: songs }).then(r => { toast('开始处理 ' + r.started + ' 首'); inSel.clear(); inHome(); }).catch(e => toast(e.message)); };
+  upd();
+  // 在看这一页时一直轻轻刷新：下完一首，这里就能看到它一步步走（忙时 3 秒一次，闲时 15 秒）
+  clearInterval(inPoll); inPoll = setInterval(() => { if (mKind !== 'inbox' || curTab !== 'meta') return clearInterval(inPoll); const ae = document.activeElement; if (ae && /^(indirs|bdlink|bdpw)$/.test(ae.id)) return; api('inbox').then(j2 => { const same = JSON.stringify([j2.items, j2.busy, j2.cfg, j2.tree, j2.pwN]) === JSON.stringify([j.items, j.busy, j.cfg, j.tree, j.pwN]); if (!same) { inDraw(j2); inBadge(); } }).catch(() => {}); }, (j.busy || busyL.length) ? 3000 : 15000);
+}
+// ---------- 转成 flac：CA1000T 放不了 m4a，用电脑上的 ffmpeg 无损转（和 tran.bat 一个规矩，只是文件在播放器上） ----------
+let flacPoll = null, flacDir = '/Music', flacOpen = {};
+async function flacHome() {
+  const V = $('#mview'); let j;
+  try { j = await api('flac/job'); } catch (e) { V.innerHTML = `<div class="job"><div class="nm"><b>转成 flac</b></div><p class="hint" style="color:var(--bad)">${esc(e.message)}</p></div>`; return; }
+  flacDraw(j);
+}
+function flacDraw(j) {
+  const V = $('#mview'), st = j.status || {}, run = j.running, tot = st.total || 0, i = st.i || 0;
+  const pct = tot ? Math.round(((st.done || 0) + (st.skip || 0) + (st.err || 0)) / tot * 100) : 0;
+  const fin = st.fin && !run;
+  const head = `<div class="job inhero"><div class="hrow"><div><div class="ht">把播放器上的 m4a 转成 flac</div>
+      <div class="hs">CA1000T 放不了 .m4a（苹果音乐、网盘里常见）。转法和你的 tran.bat 一样：找出所有 .m4a → ${APP ? '在这台设备上' : '用 ffmpeg '}无损转成 .flac（歌名、歌手、专辑、封面都带上）→ 新文件传好、核对过大小才删 m4a → 文件名去掉开头的「06. 」。已经有同名 flac 的跳过。</div></div></div>
+    <div class="lsr" style="margin-top:10px"><input id="fldir" value="${esc(st.dir && !run ? st.dir : flacDir)}" placeholder="播放器上的文件夹，例如 /Music 或 /Music/待分类"><button class="btn" id="flcount" ${run ? 'disabled' : ''}>先数一下</button><button class="btn pri" id="flgo" ${run ? 'disabled' : ''}>开始转换</button></div>
+    <label class="sw" style="border:none;padding:6px 2px"><span>自动转<small>新歌传到播放器后、以及每 15 分钟，看一眼新歌文件夹，有 m4a 就转</small></span><input type="checkbox" id="flauto" ${j.auto ? 'checked' : ''}></label></div>`;
+  let body = '';
+  if (j.err) body += `<div class="job intodo"><div class="act"><div><b>转不了</b><small>${esc(j.err)}</small></div></div></div>`;
+  if (run || st.t0) {
+    const listing = run && !tot && /找/.test(st.cur || '');
+    body += `<div class="job"><div class="nm"><b>${run ? (j.list ? '正在数…' : '正在转') : fin ? (j.list ? '数好了' : '这一轮转完了') : '上一轮'}</b><span class="hint" style="margin-left:8px">${esc(st.dir || '')}${st.tool ? ' · ' + esc(st.tool === '手机' ? '在这台设备上转' : /PyAV/.test(st.tool) ? '用 PyAV' : '用 ffmpeg') : ''}</span>${run ? '<button class="btn sm" id="flstop" style="margin-left:auto">停</button>' : ''}</div>
+      ${listing ? '<p class="hint">正在翻播放器上的文件夹找 .m4a（文件夹多的话要一会儿）…</p>' : ''}
+      ${tot || fin ? `<div class="tiles"><div class="tile ${run ? 'on' : ''}"><b>${tot}</b><span>找到的 m4a</span></div><div class="tile ok"><b>${st.done || 0}</b><span>转好了</span></div><div class="tile"><b>${st.skip || 0}</b><span>已有 flac，跳过</span></div><div class="tile ${st.err ? 'warn' : ''}"><b>${st.err || 0}</b><span>失败</span></div></div>` : ''}
+      ${run && tot && !j.list ? `<div class="bar" style="margin:10px 0 4px;height:8px;border-radius:6px;background:var(--line);overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--acc2)"></i></div><p class="hint">第 ${i} / ${tot} 首 · ${esc(st.cur || '')}</p>` : ''}
+      ${fin && j.list ? `<p class="hint">${tot ? '点「开始转换」就开始。大约 ' + Math.max(1, Math.round(tot * (APP ? 0.8 : 0.4))) + ' 分钟（每首要从播放器拉下来、转好再传回去）。' : '这里没有 m4a ✦'}</p>` : ''}
+      ${(st.errs || []).length ? '<p class="hint" style="color:var(--bad)">最近一个失败：' + esc(st.errs[st.errs.length - 1].err) + '</p>' : ''}
+      ${(st.errs || []).length ? '<details class="faq" id="flerrs" ' + (flacOpen.errs ? 'open' : '') + '><summary>失败的 ' + st.errs.length + ' 个</summary><dl>' + st.errs.map(e => '<dt>' + esc(e.path) + '</dt><dd>' + esc(e.err) + '</dd>').join('') + '</dl></details>' : ''}
+      ${(st.converted || []).length && !j.list ? '<details class="faq" id="flok" ' + (flacOpen.ok ? 'open' : '') + '><summary>转好的（最近 ' + st.converted.length + ' 个）</summary><dl>' + st.converted.slice().reverse().slice(0, 100).map(x => '<dd>' + esc(x) + '</dd>').join('') + '</dl></details>' : ''}
+      ${fin && !j.list && st.done ? '<p class="hint">播放器要自己更新曲库（或在机器上「初始化媒体扫描」，记得去掉“清除歌单”）后，转好的才会出现在「曲库」里。</p>' : ''}
+    </div>`;
+  }
+  V.innerHTML = head + body;
+  const dir = () => { flacDir = $('#fldir').value.trim() || '/Music'; return flacDir; };
+  $('#flcount').onclick = () => api('flac/start', { dir: dir(), list: true }).then(() => setTimeout(flacHome, 800)).catch(e => toast(e.message));
+  $('#flgo').onclick = () => api('flac/start', { dir: dir() }).then(() => { toast('开始转了'); setTimeout(flacHome, 800); }).catch(e => { toast(e.message); flacHome(); });
+  $('#flauto').onchange = e => api('settings', { autoFlac: e.target.checked }).then(() => toast(e.target.checked ? '开了：传上去的 m4a 会自动转' : '关了')).catch(er => toast(er.message));
+  if ($('#flstop')) $('#flstop').onclick = () => api('flac/stop', {}).then(flacDraw).catch(e => toast(e.message));
+  if ($('#flerrs')) $('#flerrs').ontoggle = e => flacOpen.errs = e.target.open; if ($('#flok')) $('#flok').ontoggle = e => flacOpen.ok = e.target.open;
+  // 一直轻轻刷新：自动转在后台开始了，这里也能看到（转的时候 2.5 秒一次，闲时 10 秒）
+  clearInterval(flacPoll); flacPoll = setInterval(() => { if (mKind !== 'flac' || curTab !== 'meta') return clearInterval(flacPoll); api('flac/job').then(j2 => { if (document.activeElement && document.activeElement.id === 'fldir') return; if (!run && !j2.running && JSON.stringify(j2) === JSON.stringify(j)) return; flacDraw(j2); }).catch(() => {}); }, run ? 2500 : 10000);
+}
+
+/* ---------- 歌词解读（AI）：整首意境 / 这一句 / 照进自己 ---------- */
+// 提示词都在这里：电脑版、App 共用；后台只负责带上密钥转给 DeepSeek（或别的 OpenAI 兼容接口）
+const AI_SYS = `你是「群星音乐」里的听歌伙伴：懂音乐，读得懂诗，也愿意认真听人说话。
+规矩：
+1. 只根据给你的歌名、歌手和歌词来解读。不编造歌手经历、创作背景、获奖、年份；不确定就说“也许”“可能”，或者不提。
+2. 用歌词里具体的词和画面说话，少用“充满张力”“直击人心”“引人深思”这类空话。不要逐句复述或翻译整首歌。
+3. 中文回答，像一个细心、真诚的朋友：不端着，不说教，不灌鸡汤。
+4. 只输出一个 JSON 对象，不要 markdown，不要多余的字。`;
+const AI_ME_RULES = `关于“照进他自己”：
+- 他的近况是他自己写的，只用于这次解读。不要原样复述他的隐私细节，也不要给他贴标签。
+- 先找到这首歌（具体到某句）和他处境真正相通的地方；对不上就老实说“这首歌和你现在的处境关系不大”，再说它能给他什么。
+- 根据他的状态选语气：难过、受伤、累 → 安抚（comfort）；迷茫、纠结、卡住 → 指一指方向（guide）；顺利但可能忽略了什么 → 提醒（remind）。
+- 不评判他的选择，不替他做重大决定（分手、辞职、退学之类），给的是视角和下一小步。
+- 如果他写到想伤害自己、活不下去之类的话：先温和地说你在意他，请他现在就找一个信任的人说说、或联系当地的心理援助热线，tone 用 comfort，不要只顾着解读歌词。`;
+function aiLyrText(j) {   // 歌词正文（去掉时间和作词作曲那些行）；外文歌把翻译附在后面
+  const L = parseLrc(j.text || '').filter(l => l.txt && !/^(作词|作曲|编曲|制作人|词|曲|OP|SP|混音|母带)\s*[:：]/.test(l.txt));
+  const TM = j.trans ? transMap(T2Sc(j.trans)) : null;
+  return L.map(l => { const tr = TM && l.t >= 0 && TM.get(l.t.toFixed(2)); return l.txt + (tr && tr !== l.txt ? '（' + tr + '）' : ''); }).join('\n');
+}
+function aiPrompt(kind, ctx) {
+  const head = `歌名：${ctx.title}\n歌手：${ctx.artist || '不知道'}\n\n歌词（按顺序；外文歌括号里是中文翻译）：\n${ctx.lyrics}\n`;
+  const me = ctx.mirror && ctx.me ? `\n\n他的近况（他自己写的）：\n${ctx.me}\n\n${AI_ME_RULES}` : '';
+  if (kind === 'song') return head + me + `\n\n请输出 JSON：
+{
+  "mood": "整首歌的意境：像在描写一个画面或一段场景，80~150 字",
+  "theme": "这首歌真正在说什么，一句话",
+  "arc": ["开头的情绪", "中段的情绪", "结尾的情绪"],
+  "images": [{"word": "歌词里的关键意象（用原词）", "meaning": "它在这首歌里代表什么，20 字内"}],
+  "keyLine": "最能代表整首歌的一句（原文）"` + (me ? `,
+  "mirror": {
+    "resonance": "这首歌和他现在的处境哪里相通（具体到某句歌词），60~120 字",
+    "tone": "comfort / guide / remind 三选一",
+    "words": "对他说的话，像朋友当面说，100~180 字；温柔或直白都行，但要具体，不空泛",
+    "try": ["这周就能做的一件小事（20 字内）", "最多 3 条"]
+  }` : '') + `\n}\nimages 给 3~5 个。`;
+  return head + `\n现在唱到第 ${ctx.idx + 1} 句：「${ctx.line}」${ctx.lineTr ? '（' + ctx.lineTr + '）' : ''}\n上一句：${ctx.prev || '（没有）'}\n下一句：${ctx.next || '（没有）'}` + me + `\n\n请输出 JSON：
+{
+  "meaning": "这句字面上说了什么、言外之意是什么，40~90 字",
+  "role": "它在整首歌里起什么作用（铺垫、转折、点题、回忆、反问……），一句话说清和前后的关系",
+  "feel": "听到这句时的画面或情绪，30 字内"` + (me ? `,\n  "mirror": "这一句可以怎么照进他现在的生活，50~100 字；对不上就直说"` : '') + `\n}`;
+}
+let AIC = null, aiTab = 'song', aiCache = {};
+async function aiCfg() { if (!AIC) try { AIC = await api('ai/config'); } catch (e) { AIC = { hasKey: false, me: '' }; } return AIC; }
+function aiCtx(mirror) {
+  const c = S && S.cur, idx = Math.max(0, lastIdx), ln = lines[idx];
+  const TM = LJ && LJ.trans ? transMap(T2Sc(LJ.trans)) : null;
+  const tr = ln && TM && ln.t >= 0 ? TM.get(ln.t.toFixed(2)) : '';
+  return { title: cleanTitle(c ? c.title : ''), artist: c ? c.artist : '', lyrics: aiLyrText(LJ || {}), idx, line: ln ? ln.txt : '', lineTr: tr && ln && tr !== ln.txt ? tr : '', prev: lines[idx - 1] ? lines[idx - 1].txt : '', next: lines[idx + 1] ? lines[idx + 1].txt : '', mirror, me: (AIC && AIC.me) || '' };
+}
+function cleanTitle(t) { return String(t || '').replace(/\.(flac|mp3|m4a|wav|ogg|dsf|dff|ape)$/i, '').replace(/^\s*\d{1,3}\s*[.\-_、 ]\s*/, ''); }
+async function aiOpen() {
+  if (!(S && S.cur)) return toast('现在没有在放的歌');
+  if (!LJ || !LJ.found || !LJ.text) return toast('这首还没有歌词，解读不了');
+  await aiCfg();
+  if (!AIC.hasKey) { toast('先在设置里填 DeepSeek 的 API 密钥'); $('#gear').click(); return; }
+  $('#aimirror').checked = SET.aiMirror !== false && !!AIC.me;
+  $('#aimirror').disabled = !AIC.me; $('#aimirror').parentNode.title = AIC.me ? '' : '在设置里写了“我的近况”才能用';
+  $('#aip').classList.add('on'); aiShow(aiTab === 'me' && !$('#aimirror').checked ? 'song' : aiTab);
+}
+function aiClose() { $('#aip').classList.remove('on'); }
+async function aiShow(tab, force) {
+  aiTab = tab; $('#aiseg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.a === tab));
+  const B = $('#aibody'), mirror = $('#aimirror').checked;
+  if (tab === 'me' && !mirror) { B.innerHTML = `<p class="ld">${AIC.me ? '勾上右上角「联系我的近况」，就会结合你在设置里写的近况来解读。' : '在 设置 → AI 解读 里写几句你最近的状态（在上学还是上班、单身还是恋爱、最近在为什么开心或难过……），再勾上「联系我的近况」。'}</p>`; return; }
+  const ctx = aiCtx(mirror), kind = tab === 'line' ? 'line' : 'song';   // 「照进自己」用整首那次的结果（里面带 mirror）
+  const key = [kind, ctx.title, ctx.artist, kind === 'line' ? ctx.idx : '', mirror ? 1 : 0, mirror ? ctx.me.length : 0].join('|');
+  if (aiCache[key] && !force) return aiDraw(tab, aiCache[key], ctx);
+  B.innerHTML = `<p class="ld">${kind === 'line' ? '正在读「' + esc(ctx.line) + '」…' : '正在读整首歌…'}</p>`;
+  try {
+    const r = await api('ai/chat', { json: true, messages: [{ role: 'system', content: AI_SYS }, { role: 'user', content: aiPrompt(kind, ctx) }] });
+    let o; try { o = JSON.parse(String(r.text || '').replace(/^```(json)?|```$/g, '').trim()); } catch (e) { throw new Error('AI 回的格式不对，点「重新解读」再试'); }
+    aiCache[key] = o; if (aiTab === tab) aiDraw(tab, o, ctx);
+  } catch (e) { if (aiTab === tab) B.innerHTML = `<p class="ld er">${esc(e.message)}</p><p style="text-align:center"><button class="btn sm" onclick="aiShow('${tab}', true)">重新解读</button></p>`; }
+}
+function aiDraw(tab, o, ctx) {
+  const B = $('#aibody'), x = s => esc(String(s || ''));
+  const again = `<p style="text-align:center;margin-top:14px"><button class="btn sm" onclick="aiShow('${tab}', true)">重新解读</button>${tab === 'line' ? ' <button class="btn sm" onclick="aiShow(\'line\')">换成现在这句</button>' : ''}</p>`;
+  if (tab === 'song') B.innerHTML = `<h4>意境</h4><p>${x(o.mood)}</p><h4>它在说什么</h4><p>${x(o.theme)}</p>`
+    + (Array.isArray(o.arc) && o.arc.length ? `<h4>情绪的走向</h4><p>${o.arc.map(x).join(' → ')}</p>` : '')
+    + (Array.isArray(o.images) && o.images.length ? `<h4>意象</h4>${o.images.map(i => `<div class="img"><b>${x(i.word)}</b><span>${x(i.meaning)}</span></div>`).join('')}` : '')
+    + (o.keyLine ? `<h4>最能代表它的一句</h4><div class="q">${x(o.keyLine)}</div>` : '') + again;
+  else if (tab === 'line') B.innerHTML = `<div class="q">${x(ctx.line)}${ctx.lineTr ? '<br><small style="color:var(--mut)">' + x(ctx.lineTr) + '</small>' : ''}</div><h4>这句在说什么</h4><p>${x(o.meaning)}</p><h4>在整首里的位置</h4><p>${x(o.role)}</p><h4>画面</h4><p>${x(o.feel)}</p>`
+    + (o.mirror ? `<h4>照进你</h4><p>${x(o.mirror)}</p>` : '') + again;
+  else {
+    const m = o.mirror; if (!m) { B.innerHTML = '<p class="ld">这次没有结合你的近况。点「重新解读」再试。</p>' + again; return; }
+    const TONE = { comfort: '想安慰你', guide: '想给你指个方向', remind: '想提醒你一句' };
+    B.innerHTML = `<h4>和你相通的地方</h4><p>${x(m.resonance)}</p><h4>${TONE[m.tone] || '想对你说'}</h4><p>${x(m.words)}</p>`
+      + (Array.isArray(m.try) && m.try.length ? `<h4>这周可以试试</h4><ul>${m.try.map(t => '<li>' + x(t) + '</li>').join('')}</ul>` : '')
+      + `<p class="hint" style="margin-top:12px">根据你在设置里写的近况。AI 说的不一定对，你最了解你自己。</p>` + again;
+  }
+}
+$('#aibtn').onclick = aiOpen; $('#npai').onclick = aiOpen; $('#aix').onclick = aiClose;
+$('#aiseg').querySelectorAll('button').forEach(b => b.onclick = () => aiShow(b.dataset.a));
+$('#aimirror').onchange = () => aiShow(aiTab);
+
+// 标签页上的小红点：导入文件夹里有新歌
+let askShown = '';
+async function inBadge() {
+  let n = 0, j = null;
+  try { j = await api('inbox'); const c = j.counts || {}; n = (c.pw || 0) + (c.err || 0) + (j.pendingN || 0) + (j.cfg && (j.cfg.auto || j.cfg.mode) ? 0 : (c.new || 0)); } catch (e) {}   // 只数要你动手的
+  document.querySelectorAll('.inbadge').forEach(b => { b.textContent = n ? (n > 99 ? '99+' : n) : ''; b.style.display = n ? '' : 'none'; });
+  // 先问我：App 开着时，有新下载就在这里弹一下（通知那边也会弹）
+  const P = j && j.pending || [], key = P.map(x => x.path).join('|');
+  if (P.length && key !== askShown && !(curPage === 'inbox') && !$('#sheet').classList.contains('on')) {
+    askShown = key;
+    const names = P.slice(0, 5).map(x => '· ' + x.name.replace(/\.[a-z0-9]{2,5}$/i, '') + (x.zip ? '（压缩包）' : '')).join('\n');
+    sheet('下载好了 ' + (j.pendingN || P.length) + ' 首新歌，传到播放器吗？', [
+      ['✦ 传到播放器', () => api('inbox/approve', {}).then(() => toast('好，开始传：补好信息再传，m4a 会先转成 flac')).catch(e => toast(e.message)), names + ((j.pendingN || 0) > 5 ? '\n…' : '')],
+      ['先不传', () => api('inbox/decline', {}).then(() => toast('这几首先不传，「导入新歌」里还能找到')).catch(e => toast(e.message))],
+      ['去「导入新歌」看看', () => nav('inbox')]]);
+  }
+}
+inBadge(); setInterval(inBadge, 20e3);
+try { const p0 = QS.get('p') || localStorage.getItem('sm_page'); nav(PAGES[p0] && !['set', 'more'].includes(p0) ? p0 : 'lyrics'); } catch (e) { nav('lyrics'); }
+
 /* ---------- 设置 ---------- */
 $('#gear').onclick = async () => {
   try { const j = await api('settings'); SET = j.settings; VOCAB = j.vocab; } catch (e) {}
   const row = (k, t, d) => `<label class="sw"><span>${t}<small>${d}</small></span><input type="checkbox" data-k="${k}" ${SET[k] ? 'checked' : ''}></label>`;
-  $('#sheetbox').innerHTML = '<h3>设置</h3>'
+  const TH = [['star', '星空'], ['dark', '极简深色'], ['light', '浅色']], th0 = document.documentElement.dataset.theme || 'star';
+  $('#sheetbox').innerHTML = '<h3>设置</h3><div class="sw"><span>主题<small>只改这台设备的样子</small></span><div class="seg" style="margin:0" id="thsel">' + TH.map(([k, t]) => `<button class="btn sm ${k === th0 ? 'on' : ''}" data-th="${k}">${t}</button>`).join('') + '</div></div>'
     + row('wordTap', '歌词里点英文单词查释义', VOCAB ? '能加进群星「单词复习」（和欧路生词一起复习）' : '查释义用有道；生词先存在本机') 
     + row('showTrans', '显示歌词翻译', '网易云有翻译的歌（多是外文歌）在原句下面显示中文')
+    + row('asr', '找不到歌词时自动听写', '两个歌词站都没有、又不是纯音乐的歌，用电脑上的离线语音识别听一遍，生成带时间的歌词（可能不准，可以「换歌词」）')
+    + row('autoFlac', '播放器上的 m4a 自动转成 flac', 'CA1000T 放不了 m4a：每 15 分钟看一次新歌文件夹，有 m4a 就' + (APP ? '在这台设备上' : '用电脑上的 ffmpeg ') + '无损转成 flac，转好再删 m4a。' + (APP ? '（从这里导入的 m4a 上传前就会先转好）' : ''))
+    + row('npFollow', '播放页歌词跟着滚动', '关掉后可以随意上下看整首歌词；开着时手动滑动会先停 6 秒再跟上')
+    + '<div id="aicfg"></div>'
     + row('autoLists', '自动歌单写到播放器', '「最近常听」「很久没听」每天更新一次，CA1000T 上也能直接点')
     + (APP ? '<div id="appcfg"></div>' : '')
     + '<div id="statbox"></div><button class="it" data-x="1" style="color:var(--mut)" onclick="closeSheet()">关闭</button>';
+  // AI 解读：DeepSeek 密钥、我的近况
+  api('ai/config').then(c => {
+    AIC = c;
+    $('#aicfg').innerHTML = `<h3 style="margin-top:12px">AI 解读歌词（DeepSeek）</h3>
+      <div class="lsr"><span style="width:96px;color:var(--mut);font-size:13px;align-self:center">API 密钥</span><input id="aikey" type="password" autocomplete="off" placeholder="${c.hasKey ? '已填（…' + esc(c.keyTail) + '），要换就重新粘贴' : 'sk-…（在 platform.deepseek.com 申请）'}"></div>
+      <div class="lsr"><span style="width:96px;color:var(--mut);font-size:13px;align-self:center">接口地址</span><input id="aibase" value="${esc(c.base)}"></div>
+      <div class="lsr"><span style="width:96px;color:var(--mut);font-size:13px;align-self:center">模型</span><input id="aimodel" value="${esc(c.model)}" placeholder="deepseek-chat"></div>
+      ${row('aiMirror', '解读时联系我的近况', '默认勾不勾「联系我的近况」；每次解读时也能在面板右上角临时开关')}
+      <p class="hint" style="margin:8px 2px 4px">我的近况（可空）：写几句你最近的状态，解读时会把歌词「照进」你自己——安慰、提醒或指个方向。</p>
+      <textarea id="aime" rows="5" style="width:100%;border-radius:12px;background:var(--glass);border:1px solid var(--line);color:var(--tx);padding:10px;font:inherit;font-size:14px" placeholder="比如：在读大三，准备考研，有点焦虑；单身，上个月刚和喜欢的人说清楚了；最近常一个人在宿舍听歌到很晚……">${esc(c.me)}</textarea>
+      <p class="hint" style="margin:4px 2px">只存在${APP ? '这台设备' : '这台电脑'}上；只有你点「解读」、而且勾着「联系我的近况」时，才会和歌词一起发给 DeepSeek。</p>
+      <div class="bar2"><button class="btn pri" id="aisave">保存 AI 设置</button>${c.hasKey ? '<button class="btn" id="aiclr">删掉密钥</button>' : ''}</div>`;
+    $('#aicfg').querySelectorAll('input[data-k]').forEach(i => i.onchange = () => api('settings', { [i.dataset.k]: i.checked }).then(j => { SET = j.settings; toast('已保存'); }).catch(e => toast(e.message)));
+    $('#aisave').onclick = () => api('ai/config', { key: $('#aikey').value.trim(), base: $('#aibase').value.trim(), model: $('#aimodel').value.trim(), me: $('#aime').value }).then(c2 => { AIC = c2; aiCache = {}; toast('AI 设置已保存'); $('#aikey').value = ''; $('#aikey').placeholder = c2.hasKey ? '已填（…' + c2.keyTail + '）' : ''; }).catch(e => toast(e.message));
+    if ($('#aiclr')) $('#aiclr').onclick = () => api('ai/config', { clearKey: true }).then(c2 => { AIC = c2; toast('密钥删掉了'); }).catch(e => toast(e.message));
+  }).catch(() => {});
   if (APP) api('config').then(c => {
     const f = (k, t, ph) => `<div class="lsr"><span style="width:96px;color:var(--mut);font-size:13px;align-self:center">${t}</span><input data-c="${k}" value="${esc(c[k] || '')}" placeholder="${esc(ph)}"></div>`;
     $('#appcfg').innerHTML = '<h3 style="margin-top:12px">连接</h3>' + f('ip', '播放器 IP', '空着就自动找') + f('uploadDir', '分享传到', '/Music/待分类')
@@ -672,6 +1295,7 @@ $('#gear').onclick = async () => {
       + '<p class="hint">填了群星地址：歌词里加的生词进群星「单词复习」，这里也能看听歌统计。</p><div class="bar2"><button class="btn pri" id="cfgsave">保存连接设置</button></div>';
     $('#cfgsave').onclick = () => { const b = {}; $('#appcfg').querySelectorAll('input[data-c]').forEach(i => b[i.dataset.c] = i.value.trim()); api('config', b).then(() => { toast('已保存，正在重新连接播放器'); api('settings').then(j => { SET = j.settings; VOCAB = j.vocab; }); }).catch(e => toast(e.message)); };
   }).catch(() => {});
+  $('#thsel').querySelectorAll('button').forEach(b => b.onclick = () => { document.documentElement.dataset.theme = b.dataset.th; try { localStorage.setItem('sm_theme', b.dataset.th); } catch (e) {} $('#thsel').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = b.dataset.th === 'light' ? '#f4f2ee' : b.dataset.th === 'dark' ? '#111016' : '#0b0a14'; });
   $('#sheetbox').querySelectorAll('input[data-k]').forEach(i => i.onchange = () => api('settings', { [i.dataset.k]: i.checked }).then(j => { SET = j.settings; if (LJ) drawLyrics(LJ); toast('已保存'); }).catch(e => toast(e.message)));
   $('#sheet').classList.add('on');
   try { const st = await api('stats'); const m = ms => { const x = Math.round(ms / 60000); return x >= 60 ? Math.floor(x / 60) + ' 小时 ' + x % 60 + ' 分' : x + ' 分钟'; };
@@ -687,6 +1311,96 @@ function scrollLyr(force) {
   if (i >= 0 && ps[i]) { ps[i].classList.add('cur'); const sec = $('#s-lyrics'); if (sec.classList.contains('on')) sec.scrollTo({ top: ps[i].offsetTop - sec.clientHeight * 0.4, behavior: force ? 'auto' : 'smooth' }); }
 }
 
+
+/* ---------- 播放页：点歌词进入，四种样式随时切换（记在这台设备上） ---------- */
+let NP = { on: false, style: 'A', key: '', idx: -2, tint: '', bg: '', lj: null };
+try { NP.style = localStorage.getItem('sm_np_style') || 'A'; } catch (e) {}
+const ARM = '<svg class="arm" viewBox="0 0 120 200" aria-hidden="true"><circle cx="22" cy="14" r="12" fill="#d8d3ea"/><circle cx="22" cy="14" r="5" fill="#8b84a8"/><path d="M22 14 L36 150 L58 186" fill="none" stroke="#d8d3ea" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><rect x="48" y="176" width="22" height="18" rx="3" fill="#bfb8d8" transform="rotate(-30 59 185)"/></svg>';
+$('#npx').innerHTML = SV('<path d="M6 9l6 6 6-6"/>'); $('#npprev').innerHTML = IC.prev; $('#npnext').innerHTML = IC.next;
+function npOpen() { if (!S || !S.cur) return; NP.on = true; $('#npo').classList.add('on'); NP.key = ''; npDraw(); }
+function npClose() { NP.on = false; $('#npo').classList.remove('on'); }
+$('#npx').onclick = npClose;
+$('#npprev').onclick = () => $('#prev').click(); $('#npnext').onclick = () => $('#next').click(); $('#nppp').onclick = () => $('#pp').click();
+$('#nppg').onclick = e => { if (!S || !S.dur) return; const r = $('#nppg').getBoundingClientRect(); seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * S.dur); };
+$('#npsty').querySelectorAll('button').forEach(b => b.onclick = () => { NP.style = b.dataset.s; try { localStorage.setItem('sm_np_style', NP.style); } catch (e) {} NP.key = ''; npDraw(); });
+let npY0 = null; $('#npo').addEventListener('touchstart', e => { npY0 = e.touches[0].clientY; }, { passive: true });
+$('#npo').addEventListener('touchend', e => { if (npY0 != null && e.changedTouches[0].clientY - npY0 > 120) npClose(); npY0 = null; }, { passive: true });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && NP.on) npClose(); });
+// 封面主色 → 背景色调
+function npTint(u) {
+  if (!u || NP.tint === u) return; NP.tint = u;
+  const im = new Image(); im.onload = () => { try { const c = document.createElement('canvas'); c.width = c.height = 12; const x = c.getContext('2d'); x.drawImage(im, 0, 0, 12, 12); const d = x.getImageData(0, 0, 12, 12).data; let r = 0, g = 0, b = 0, n = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; } $('#npo').style.setProperty('--tint', `rgb(${r / n | 0},${g / n | 0},${b / n | 0})`); NP.bg = `rgb(${(r / n) * .18 | 0},${(g / n) * .18 | 0},${(b / n) * .22 | 0})`; if (NP.style !== 'C') $('#npo').style.background = NP.bg; } catch (e) {} };
+  im.src = u;
+}
+function npDraw() {
+  if (!NP.on || !S || !S.cur) return;
+  const c = S.cur, u = c.art ? art(c.art) : '', cv = u ? `style="background-image:url('${u.replace(/'/g, '%27')}')"` : '';
+  const key = NP.style + '|' + c.url; if (NP.key === key) return; NP.key = key; NP.idx = -2;
+  const o = $('#npo'); o.className = 'npo on s' + NP.style + (S.state === 'PLAYING' ? '' : ' paused'); o.style.background = NP.style !== 'C' && NP.tint === u ? NP.bg : '';
+  $('#npsty').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.s === NP.style));
+  $('#npbg').style.backgroundImage = u ? `url('${u.replace(/'/g, '%27')}')` : 'none';
+  const t = esc(T(c)), a = esc(artistOf(c) || ''), al = esc(T2Sc(c.album || ''));
+  const meta = `<div class="meta"><b>${t}</b><span>${a}${al && al !== t ? ' · ' + al : ''}</span></div>`;
+  const L3 = '<div class="lines" id="npl"></div>';
+  let h = '';
+  if (NP.style === 'A') h = `<div class="vin">${ARM}<div class="rec spin"><div class="cv" role="img" aria-label="封面" ${cv}></div></div></div>${meta}${L3}`;
+  else if (NP.style === 'B') h = `<div class="mini"><div class="cv" role="img" aria-label="封面" ${cv}></div><div><b>${t}</b><span>${a}</span></div></div>${L3}`;
+  else if (NP.style === 'C') h = `<div class="cdisc spin"><div class="cv" role="img" aria-label="封面" ${cv}></div></div>${meta}${L3}`;
+  else {
+    const stars = [[8, 9], [77, 7], [90, 21], [15, 35], [87, 50], [5, 62], [51, 13], [28, 76], [72, 83]].map(([x, y], i) => `<i class="st" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.37) % 3}s"></i>`).join('');
+    const ot = esc((artistOf(c) || '群星音乐') + ' · ' + T(c) + ' · ');
+    h = `<div aria-hidden="true" style="position:absolute;inset:0">${stars}</div><div class="orb"><div class="ring spin"><i></i></div><svg class="otxt spin" viewBox="0 0 330 330" aria-hidden="true"><defs><path id="nporb" d="M165,165 m-138,0 a138,138 0 1,1 276,0 a138,138 0 1,1 -276,0"/></defs><text font-size="13" letter-spacing="6" fill="#b9b1d9"><textPath href="#nporb">${ot.repeat(4)}</textPath></text></svg><div class="core"><div class="cv spin" role="img" aria-label="封面" ${cv}></div></div></div>${meta}${L3}`;
+  }
+  $('#npst').innerHTML = h;
+  // 整首歌词：可以上下滑；手动滑的时候先不自动跟随（设置里可以关掉自动跟随）
+  const box = $('#npl'); NP.userAt = 0; NP.built = null;
+  const touch = () => { NP.userAt = Date.now(); npBackBtn(); };
+  box.addEventListener('wheel', touch, { passive: true }); box.addEventListener('touchmove', e => { e.stopPropagation(); touch(); }, { passive: true });
+  box.addEventListener('touchstart', e => e.stopPropagation(), { passive: true }); box.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
+  box.onclick = e => { const p0 = e.target.closest('p[data-i]'); if (p0 && synced && lines[+p0.dataset.i]) seek(lines[+p0.dataset.i].t); };   // 点一句跳到那里
+  npTint(u); npTick(true);
+}
+const npFollow = () => SET.npFollow !== false;
+function npBackBtn() { const b = $('#npback'); if (b) b.classList.toggle('on', NP.on && lines.length > 0 && synced && (!npFollow() || Date.now() - (NP.userAt || 0) < 6000)); }
+$('#npback').onclick = () => { NP.userAt = 0; npScroll(true); npBackBtn(); };
+function npBuild() {
+  const box = $('#npl'); if (!box) return;
+  NP.built = LJ; NP.idx = -2;
+  if (!lines.length) { box.innerHTML = `<p class="c" style="opacity:.8">${LJ && LJ.instrumental ? '纯音乐，请欣赏' : (LJ ? '这首没有找到歌词' : '正在找歌词…')}</p>`; return; }
+  const TM = SET.showTrans && LJ && LJ.trans ? transMap(T2Sc(LJ.trans)) : null;
+  box.innerHTML = lines.map((l, i) => { const tr = TM && l.t >= 0 && TM.get(l.t.toFixed(2)); return `<p data-i="${i}">${esc(l.txt) || '♪'}${tr && tr !== l.txt ? '<span class="tr">' + esc(tr) + '</span>' : ''}</p>`; }).join('');
+}
+function npScroll(force) {
+  const box = $('#npl'), p = box && box.querySelector('p.c'); if (!p) return;
+  if (!force && (!npFollow() || Date.now() - (NP.userAt || 0) < 6000)) return;
+  box.scrollTo({ top: p.offsetTop - box.clientHeight * (NP.style === 'B' ? 0.55 : 0.35), behavior: force === 'jump' ? 'auto' : 'smooth' });
+}
+function npTick(force) {
+  if (!NP.on || !S) return;
+  if (!S.cur) return npClose();
+  if (NP.key !== NP.style + '|' + S.cur.url) return npDraw();
+  const o = $('#npo'), paused = S.state !== 'PLAYING'; if (o.classList.contains('paused') !== paused) o.classList.toggle('paused', paused);
+  { if ($('#nppp').dataset.s !== String(paused)) { $('#nppp').dataset.s = String(paused); $('#nppp').innerHTML = paused ? IC.play : IC.pause; } }
+  const t = now(); $('#npt1').textContent = fmt(t); $('#npt2').textContent = fmt(S.dur); $('#nppgi').style.width = (S.dur ? Math.min(100, 100 * t / S.dur) : 0) + '%';
+  if (NP.built !== LJ || NP.lineN !== lines.length) { NP.lineN = lines.length; npBuild(); force = 'jump'; }
+  npBackBtn();
+  if (!synced || !lines.length) return;
+  let i = -1; for (let k = 0; k < lines.length; k++) { if (lines[k].t <= t + 0.25) i = k; else break; }
+  if (i === NP.idx && !force) return;
+  const box = $('#npl'); if (!box) return;
+  const old = box.querySelector('p.c'); if (old) { old.classList.remove('c'); const k = old.querySelector('.kar'); if (k) old.innerHTML = k.innerHTML + (old.dataset.tr || ''); }
+  NP.idx = i; if (i < 0) return;
+  const p = box.querySelector('p[data-i="' + i + '"]'); if (!p) return;
+  p.classList.add('c');
+  if (NP.style === 'B') {   // 歌词视频：当前这句逐字染色，时长 = 这一句唱多久
+    const d = Math.max(1, Math.min(12, ((lines[i + 1] || {}).t || (lines[i].t + 4)) - lines[i].t));
+    const tr = p.querySelector('.tr'); p.dataset.tr = tr ? tr.outerHTML : '';
+    p.innerHTML = `<span class="kar" style="animation-duration:${d}s">${esc(lines[i].txt || '♪')}</span>` + (p.dataset.tr || '');
+  }
+  npScroll(force === 'jump' ? 'jump' : false);
+}
+// 没有歌词（纯音乐、没找到）时，点歌词区的空白处也能打开播放页
+$('#lyr').addEventListener('click', e => { if (!e.target.closest('p[data-i]') && !e.target.closest('button') && !e.target.closest('.w')) npOpen(); });
 /* ---------- 状态 ---------- */
 const now = () => S ? Math.min(S.dur || 1e9, base + (S.state === 'PLAYING' ? (Date.now() - baseAt) / 1000 : 0)) : 0;
 function show(s) {
@@ -701,7 +1415,7 @@ function show(s) {
   if (s.vol != null && document.activeElement !== $('#vol')) { $('#vol').value = s.vol; $('#volv').textContent = s.vol; }
 }
 function tickUi() {
-  if (!S) return; const t = now();
+  if (!S) return; const t = now(); try { npTick(false); } catch (e) {}
   $('#cur').textContent = fmt(t); $('#dur').textContent = fmt(S.dur);
   if (!dragging) { $('#seek').max = Math.max(1, Math.floor(S.dur || 1)); $('#seek').value = Math.floor(t); }
   scrollLyr(false);
@@ -725,6 +1439,7 @@ function drawExtras(s) {
   const z = s.sleep; $('#sleep').classList.toggle('on', !!z);
   if (!$('#sleep').innerHTML) $('#sleep').innerHTML = IC.moon;
   const parts = [];
+  if (s.cur && s.cur.ext) parts.push('另一台设备 / 机器上点的歌，在这里同步显示');
   if (m !== 'order') parts.push(MODES.find(x => x[0] === m)[1]);
   if (z) parts.push(z.endOfTrack ? '播完这首就停' : '睡眠 ' + fmt(z.left));
   $('#subline').textContent = parts.join(' · ');
@@ -758,6 +1473,7 @@ document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' && 
   const rs = () => { W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; stars = Array.from({ length: Math.round(W * H / 9000) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.3 + .2, p: Math.random() * 6.3, s: .4 + Math.random() * 1.6, h: Math.random() < .15 ? 45 : Math.random() < .5 ? 260 : 210 })); };
   rs(); addEventListener('resize', rs);
   const draw = t => {
+    const th = document.documentElement.dataset.theme; if ((th && th !== 'star') || document.hidden) return setTimeout(() => requestAnimationFrame(draw), 500);   // 别的主题不画星空，省电
     const bg = g.createRadialGradient(W * .78, H * .12, 0, W * .78, H * .12, Math.max(W, H) * .8);
     bg.addColorStop(0, '#2a1b5e'); bg.addColorStop(.35, '#120d33'); bg.addColorStop(1, '#05040d'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
     const nb = g.createRadialGradient(W * .15, H * .85, 0, W * .15, H * .85, Math.max(W, H) * .55); nb.addColorStop(0, 'rgba(60,130,255,.18)'); nb.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = nb; g.fillRect(0, 0, W, H);
@@ -771,6 +1487,7 @@ document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' && 
 
 open('0', 'CA1000T', false);
 poll(); setInterval(poll, 2000); setInterval(tickUi, 250);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });   // 切回来马上同步一次
 api('volume').then(j => { $('#vol').value = j.vol; $('#volv').textContent = j.vol; fill($('#vol')); $('#vmute').innerHTML = volIcon(j.vol); }).catch(() => {});
 </script>
 </body>

@@ -215,7 +215,38 @@ def run(plan, host, limit, status_file):
         save_st()
     st['cur'] = ''; st['fin'] = True; save_st(); ca.close()
 
+# ---------- 本机文件（导入前先改好再上传，不用来回传两趟） ----------
+def local_read(paths):
+    out = []
+    for p in paths:
+        ext = p.rsplit('.', 1)[-1].lower()
+        try:
+            f = mutagen.File(p); t = read_tags(p, ext) if ext in ('flac', 'mp3', 'ogg', 'm4a', 'wav') else {}
+            out.append({'path': p, 'tags': {k: (v[0] if v else '') for k, v in t.items()}, 'dur': round(f.info.length, 1) if f and f.info else 0})
+        except Exception as e: out.append({'path': p, 'err': str(e)[:200]})
+    return out
+def local_write(plan):
+    out = []
+    for x in plan:
+        p = x['path']; ext = p.rsplit('.', 1)[-1].lower(); new = dict(x['new'])
+        try:
+            sig0 = audio_sig(p, ext)
+            cover_url = new.pop('cover', None)
+            if cover_url:
+                try: new['_cover'] = fetch_cover(cover_url)
+                except Exception: pass
+            write_tags(p, ext, {k: v for k, v in new.items() if k in ('title', 'artist', 'album', 'albumartist')})
+            if any(k in new for k in ('track', 'year', '_cover')): write_extra(p, ext, new)
+            if audio_sig(p, ext) != sig0: raise IOError('音频数据变了')
+            out.append({'path': p, 'ok': 1})
+        except Exception as e: out.append({'path': p, 'ok': 0, 'err': str(e)[:200]})
+    return out
+
 if __name__ == '__main__':
+    if len(sys.argv) > 2 and sys.argv[1] in ('--local-read', '--local-write'):   # 本机文件：读 / 写，结果以 JSON 打到标准输出
+        arg = json.load(open(sys.argv[2], encoding='utf-8'))
+        r = local_read(arg) if sys.argv[1] == '--local-read' else local_write(arg)
+        sys.stdout.write(json.dumps(r, ensure_ascii=False)); sys.exit(0)
     ap = argparse.ArgumentParser(); ap.add_argument('plan'); ap.add_argument('--host', required=True); ap.add_argument('--limit', type=int, default=0); ap.add_argument('--undo', action='store_true')
     a = ap.parse_args()
     if a.undo:   # 用备份里的旧标签生成一个“还原计划”

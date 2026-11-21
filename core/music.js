@@ -153,8 +153,11 @@ class MusicCore {
     const x = await this.soap(this.sUrl(), CD, 'Browse', { ObjectID: id, BrowseFlag: 'BrowseDirectChildren', Filter: '*', StartingIndex: start, RequestedCount: count, SortCriteria: '' }, 12000);
     const didl = tag(x, 'Result');
     const total = +tag(x, 'TotalMatches') || 0;
+    return { id, start, total, items: this.parseDidl(didl) };
+  }
+  parseDidl(didl) {
     const items = [];
-    for (const m of didl.matchAll(/<(container|item)\s([^>]*)>([\s\S]*?)<\/\1>/g)) {
+    for (const m of String(didl || '').matchAll(/<(container|item)\s([^>]*)>([\s\S]*?)<\/\1>/g)) {
       const attr = k => unesc((new RegExp(k + '="([^"]*)"').exec(m[2]) || [])[1] || '');
       const b = m[3];
       if (m[1] === 'container') { const t = tag(b, 'title'); items.push({ kind: 'dir', id: attr('id'), title: t, titleS: T2S(t) !== t ? T2S(t) : undefined, count: +attr('childCount') || 0 }); continue; }
@@ -165,7 +168,7 @@ class MusicCore {
         sr: +ra('sampleFrequency') || 0, bits: +ra('bitsPerSample') || 0, size: +ra('size') || 0, didl: m[0] });
       { const it = items[items.length - 1]; const a = T2S(it.title), b = T2S(it.artist), c = T2S(it.album); if (a !== it.title) it.titleS = a; if (b !== it.artist) it.artistS = b; if (c !== it.album) it.albumS = c; }
     }
-    return { id, start, total, items };
+    return items;
   }
 
   /* ---------- 播放 ---------- */
@@ -229,6 +232,7 @@ class MusicCore {
     this.nextIdx = i; this.armedFor = this.cur && this.cur.url;
   }
   async step(d) {
+    if (this.cur && this.cur.ext && (!this.queue.length || this.pos < 0)) throw new Error('这首是别的设备点的，下一首 / 上一首请在点歌的那台设备上切；或者在这里点一首歌接过来');
     if (!this.queue.length) throw new Error('队列是空的');
     for (let n = 0; n < 30; n++) {
       let i;
@@ -295,6 +299,7 @@ class MusicCore {
       const p = await this.av('GetPositionInfo', {}, 5000);
       Object.assign(this.st, { state: tag(t, 'CurrentTransportState') || 'UNKNOWN', rel: hms(tag(p, 'RelTime')), dur: hms(tag(p, 'TrackDuration')) || this.st.dur,
         uri: tag(p, 'TrackURI'), at: Date.now(), online: true, err: '' });
+      this.st.meta = tag(p, 'TrackMetaData');
       // 中台重启后：CA1000T 还在放我们队列里的这首 → 接着管（继续自动下一首 / 无缝）
       if (!this.wantPlay && !this.resumed && this.st.state === 'PLAYING' && this.cur && this.st.uri === this.cur.url) { this.resumed = true; this.wantPlay = true; this.armNext().catch(() => {}); }
       // 别人在 CA1000T 上换了歌：当前曲目对不上队列就清掉“当前”
@@ -304,9 +309,16 @@ class MusicCore {
         if (this.hist[this.hist.length - 1] !== i) this.hist.push(i);
         this.gapless = (this.gapless || 0) + 1; this.lyrics(this.cur).catch(() => {}); this.armNext().catch(() => {});
       }
-      if (this.cur && this.st.uri && this.st.uri !== this.cur.url) {
+      // 播放器在放的不是“当前”：可能是另一台设备（手机 / 平板 / 电脑）点的，或者直接在机器上点的
+      if (this.st.uri && (!this.cur || this.st.uri !== this.cur.url)) {
         const k = this.queue.findIndex(x => x.url === this.st.uri);
-        if (k >= 0) { this.pos = k; this.cur = this.queue[k]; } else { this.cur = null; this.wantPlay = false; }
+        if (k >= 0) { this.pos = k; this.cur = this.queue[k]; }
+        else {
+          // 不在我们的队列里：照播放器报的歌名 / 歌手 / 封面显示，歌词跟着走；自动下一首交给点歌的那台
+          const it = this.parseDidl(this.st.meta)[0];
+          this.cur = it ? Object.assign(it, { url: this.st.uri, ext: true, dur: it.dur || this.st.dur }) : null;
+          this.wantPlay = false;
+        }
       }
     } catch (e) { this.st.online = false; this.st.err = e.message; }
     return this.st;
@@ -334,7 +346,7 @@ class MusicCore {
   view() {
     const s = this.st, live = s.state === 'PLAYING' ? (Date.now() - s.at) / 1000 : 0;
     return { online: s.online, err: s.err, player: this.playerName || '', state: s.state, rel: Math.min(s.dur || 1e9, s.rel + live), dur: s.dur, ip: this.ip,
-      cur: this.cur && { title: T2S(this.cur.title), artist: T2S(this.cur.artist), album: T2S(this.cur.album), art: this.cur.art ? '/api/music/art?u=' + encodeURIComponent(this.cur.art) : '', sr: this.cur.sr, bits: this.cur.bits, url: this.cur.url },
+      cur: this.cur && { title: T2S(this.cur.title), artist: T2S(this.cur.artist), album: T2S(this.cur.album), art: this.cur.art ? '/api/music/art?u=' + encodeURIComponent(this.cur.art) : '', sr: this.cur.sr, bits: this.cur.bits, url: this.cur.url, ext: !!this.cur.ext },
       pos: this.pos, queueLen: this.queue.length, vol: s.vol, mode: this.mode, loud: this.loud, gapless: this.gapless || 0,
       sleep: this.sleep ? (this.sleep.endOfTrack ? { endOfTrack: true } : { left: Math.max(0, Math.round((this.sleep.until - Date.now()) / 1000)), min: this.sleep.min }) : null };
   }
@@ -443,19 +455,20 @@ class MusicCore {
           }
         }
       };
-      for (const r of roots) await walk(r.id, /internal/i.test(r.title) ? this.pre() : (this.cfg.sdPath || '/storage/sdcard1'), 0);
+      for (const r of roots) await walk(r.id, /internal/i.test(r.title) ? this.pre() : this.sdRoot(), 0);
       const j = { ts: Date.now(), entries }; fs.writeFileSync(f, JSON.stringify(j));
       return (this.pidx = this.mkPidx(j));
     })().finally(() => { this.pidxBuilding = null; });
     return this.pidxBuilding;
   }
   mkPidx(j) {
-    const byPath = new Map(), byUrl = new Map();
+    const byPath = new Map(), byUrl = new Map(), bySd = new Map(), P = this.pre() + '/';
     for (const e of j.entries) {
       const item = { kind: 'song', id: e[7], title: e[3], artist: e[4], album: e[5], dur: e[6], url: e[1], size: e[2], sr: e[8], bits: e[9], proto: e[10], art: e[11], didl: e[12] };
       byPath.set(e[0].toLowerCase(), item); byUrl.set(e[1], e[0]);
+      if (!e[0].startsWith(P)) bySd.set(this.sdRest(e[0]), item);   // 存储卡上的歌：不管卡叫 sdcard1 还是 3932-3061 都能对上
     }
-    return { ts: j.ts, byPath, byUrl, n: j.entries.length };
+    return { ts: j.ts, byPath, byUrl, bySd, n: j.entries.length };
   }
 
   /* ---------- File Drop（FTP）---------- */
@@ -503,6 +516,7 @@ class MusicCore {
     this.pmeta[n] = Object.assign(this.pmeta[n] || {}, { dirty: !!dirty, at: Date.now() }); this.saveMeta();
   }
   async plList() {
+    this.learnSdAll().catch(() => {});
     let ca = null, err = '';
     try { ca = (await this.withFtp(c => c.list('/Playlists'))).filter(e => !e.dir && /\.m3u8?$/i.test(e.name)).map(e => e.name.replace(/\.m3u8?$/i, '')); }
     catch (e) { err = e.message; }
@@ -521,6 +535,9 @@ class MusicCore {
     if (meta.dirty) { await this.plPush(name).catch(e => { err = e.message; }); }
     if (!(this.pmeta[name] || {}).dirty) {
       try { const b = await this.withFtp(c => c.getText('/Playlists/' + name + '.m3u')); lines = this.parseM3u(b);
+        this.learnSd(lines);
+        // 以前写错了存储卡名字（比如 /storage/sdcard1）的歌单：改成机器上真实的卡名，写回去
+        if (this.sdAuto || this.cfg.sdPath) { const fixed = lines.map(l => this.fixSd(l)); if (fixed.join('\n') !== lines.join('\n') && !/sdcard1/.test(this.sdRoot())) { lines = fixed; this.writeMirror(name, lines, true); this.plPush(name).catch(() => {}); } }
         // CA1000T 上的版本和镜像不一样（在机器上改过）→ 更新镜像
         const old = fs.existsSync(this.mirrorPath(name)) ? this.parseM3u(fs.readFileSync(this.mirrorPath(name))) : null;
         if (!old || old.join('\n') !== lines.join('\n')) this.writeMirror(name, lines, false);
@@ -530,11 +547,26 @@ class MusicCore {
     return Object.assign({ name, from, err, dirty: !!(this.pmeta[name] || {}).dirty, sig: lines.join('\n').length + ':' + lines.length }, await this.resolve(lines));
   }
   // 把 m3u 里的路径对到 AK Connect 曲库里能播放的歌
+  /* ---------- 存储卡路径：播放器上的卡实际叫 /storage/XXXX-XXXX，从机器自己的歌单里学 ---------- */
+  sdRest(p) { return String(p).split('/').slice(3).join('/').toLowerCase(); }   // 去掉 /storage/<卡名>/
+  sdRoot() { return this.cfg.sdPath || this.sdAuto || '/storage/sdcard1'; }
+  fixSd(p) { return p && p.startsWith('/storage/') && !p.startsWith(this.pre() + '/') ? this.sdRoot() + '/' + String(p).split('/').slice(3).join('/') : p; }
+  learnSd(lines) {
+    const P = this.pre() + '/', c = this.sdCount || (this.sdCount = {});
+    for (const l of lines) { const m = /^\/storage\/([^/]+)\//.exec(l); if (m && !l.startsWith(P) && m[1] !== 'sdcard1') c[m[1]] = (c[m[1]] || 0) + 1; }
+    const best = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+    if (best && '/storage/' + best[0] !== this.sdAuto) { this.sdAuto = '/storage/' + best[0]; try { fs.writeFileSync(path.join(this.dataDir, 'music_sd.json'), JSON.stringify({ sd: this.sdAuto })); } catch (e) {} }
+  }
+  async learnSdAll() {
+    if (this.sdLearned) return; this.sdLearned = true;
+    try { this.sdAuto = JSON.parse(fs.readFileSync(path.join(this.dataDir, 'music_sd.json'), 'utf8')).sd; } catch (e) {}
+    try { await this.withFtp(async c => { const L = (await c.list('/Playlists')).filter(e => !e.dir && /\.m3u8?$/i.test(e.name)).slice(0, 30); for (const e of L) this.learnSd(this.parseM3u(await c.getText('/Playlists/' + e.name))); }); } catch (e) { this.sdLearned = false; }
+  }
   async resolve(lines) {
     const P = this.pre();
     let pidx = null, dms = null, fidx = null;
     try { pidx = await this.pathIndex(); } catch (e) {}
-    const entries = lines.map(p => ({ path: p, file: p.split('/').pop(), sd: !p.startsWith(P + '/'), item: pidx ? (pidx.byPath.get(p.toLowerCase()) || null) : null }));
+    const entries = lines.map(p => { const sd = !p.startsWith(P + '/'); return { path: p, file: p.split('/').pop(), sd, item: pidx ? (pidx.byPath.get(p.toLowerCase()) || (sd && pidx.bySd ? pidx.bySd.get(this.sdRest(p)) : null) || null) : null }; });
     if (entries.some(e => !e.item)) {   // 文件夹视图里没找到（索引旧了）→ 退回按文件大小 / 歌名对
       try { dms = await this.dmsAll(); } catch (e) {}
       try { fidx = await this.ftpIndex(); } catch (e) {}
@@ -567,7 +599,7 @@ class MusicCore {
       let p = pidx && pidx.byUrl.get(x.url);
       if (!p && !rebuilt) { rebuilt = true; pidx = await this.pathIndex(true).catch(() => pidx); p = pidx && pidx.byUrl.get(x.url); }
       if (!p && x.size) { fidx = fidx || await this.ftpIndex().catch(() => null); const q = fidx && fidx.bySize.get(x.size); if (q) p = P + q; }
-      if (p) out.push(p); else miss.push(x.title);
+      if (p) out.push(this.fixSd(p)); else miss.push(x.title);
     }
     return { paths: out, miss };
   }
@@ -693,7 +725,7 @@ class MusicCore {
     if (p === 'browse') return this.browse(u.searchParams.get('id') || '0', +u.searchParams.get('start') || 0, Math.min(200, +u.searchParams.get('count') || 100));
     if (p === 'play') return this.play(body);
     if (p === 'pause') { await this.av('Pause'); this.wantPlay = false; return this.view(); }
-    if (p === 'resume') { await this.av('Play', { Speed: 1 }); this.wantPlay = !!this.cur; return this.view(); }
+    if (p === 'resume') { await this.av('Play', { Speed: 1 }); this.wantPlay = !!this.cur && !this.cur.ext; return this.view(); }
     if (p === 'stop') { await this.av('Stop'); this.wantPlay = false; return this.view(); }
     if (p === 'next') return this.step(1);
     if (p === 'prev') return this.step(-1);
@@ -750,5 +782,6 @@ class MusicCore {
   }
 }
 require('./extras')(MusicCore, T2S);
-require('./meta')(MusicCore, T2S);     // 歌曲信息补全、专辑缺歌检查   // 多来源歌词、单词点查、听歌统计、自动歌单、设置
+require('./meta')(MusicCore, T2S);
+require('./inbox')(MusicCore, T2S);    // 导入文件夹：新歌先补信息再传到播放器     // 歌曲信息补全、专辑缺歌检查   // 多来源歌词、单词点查、听歌统计、自动歌单、设置
 module.exports = { MusicCore, T2S };

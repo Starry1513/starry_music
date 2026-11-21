@@ -45,6 +45,7 @@ public class Core {
 
     final Context ctx; final SharedPreferences prefs; final File dir;
     public Listener listener;
+    public Meta meta; public Inbox inbox; public CaFlac caflac;
     final ExecutorService bg = Executors.newCachedThreadPool();
     final ScheduledExecutorService tick = Executors.newScheduledThreadPool(2);
     final Semaphore ftpSem = new Semaphore(2);
@@ -70,19 +71,36 @@ public class Core {
         new File(dir, "playlists/_history").mkdirs();
         loadQueue();
         try { JSONObject p = new JSONObject(read(new File(dir, "player.json"))); ip = p.optString("ip", null); playerName = p.optString("name", ""); JSONObject c2 = p.optJSONObject("ctl"); if (c2 != null) for (String k : keys(c2)) ctl.put(k, c2.getString(k)); } catch (Exception ignored) {}
-        bg.execute(new Runnable() { public void run() { discover(); } });
+        meta = new Meta(this); inbox = new Inbox(this, meta); caflac = new CaFlac(this);
+        bg.execute(new Runnable() { public void run() {
+            for (int k = 0; k < 4; k++) { discover(); if (ctl.containsKey("cd") && ctl.containsKey("avt")) break; try { Thread.sleep(3000 + k * 2000); } catch (InterruptedException e) { return; } }
+        } });
         tick.scheduleWithFixedDelay(new Runnable() { public void run() { try { watch(); } catch (Throwable ignored) {} } }, 2, 2, TimeUnit.SECONDS);
         tick.scheduleWithFixedDelay(new Runnable() { public void run() { try { sleepTick(); } catch (Throwable ignored) {} } }, 1, 1, TimeUnit.SECONDS);
         tick.scheduleWithFixedDelay(new Runnable() { public void run() { try { discover(); } catch (Throwable ignored) {} } }, 10, 10, TimeUnit.MINUTES);
         tick.scheduleWithFixedDelay(new Runnable() { public void run() { try { plSyncDirty(); } catch (Throwable ignored) {} } }, 60, 60, TimeUnit.SECONDS);
     }
-    public void shutdown() { tick.shutdownNow(); bg.shutdownNow(); }
+    public void shutdown() { try { inbox.close(); } catch (Exception ignored) {} tick.shutdownNow(); bg.shutdownNow(); }
 
     /* ---------- 配置（App 里在“设置”里改，存在 SharedPreferences） ---------- */
     String cfg(String k, String d) { return prefs.getString(k, d); }
     boolean cfgB(String k) { return prefs.getBoolean(k, false); }
     String pre() { String s = cfg("internalPath", ""); return s.isEmpty() ? "/storage/emulated/0" : s; }
-    String sdPath() { String s = cfg("sdPath", ""); return s.isEmpty() ? "/storage/sdcard1" : s; }
+    String sdPath() { String s = cfg("sdPath", ""); if (!s.isEmpty()) return s; s = prefs.getString("sdAuto", ""); return s.isEmpty() ? "/storage/sdcard1" : s; }
+    /* 存储卡在播放器上实际叫 /storage/XXXX-XXXX：从机器自己的歌单里学；匹配时不看卡名 */
+    static String sdRest(String p) { String[] a = String.valueOf(p).split("/", 4); return a.length < 4 ? "" : a[3].toLowerCase(); }
+    String fixSd(String p) { if (p == null || !p.startsWith("/storage/") || p.startsWith(pre() + "/")) return p; String[] a = p.split("/", 4); return a.length < 4 ? p : sdPath() + "/" + a[3]; }
+    final Map<String, Integer> sdCount = new HashMap<String, Integer>(); volatile boolean sdLearned;
+    void learnSd(List<String> lines) {
+        for (String l : lines) { if (!l.startsWith("/storage/") || l.startsWith(pre() + "/")) continue; String[] a = l.split("/", 4); if (a.length < 4 || a[2].equals("sdcard1")) continue; Integer n = sdCount.get(a[2]); sdCount.put(a[2], n == null ? 1 : n + 1); }
+        String best = null; int bn = 0; for (Map.Entry<String, Integer> e : sdCount.entrySet()) if (e.getValue() > bn) { bn = e.getValue(); best = e.getKey(); }
+        if (best != null && !("/storage/" + best).equals(prefs.getString("sdAuto", ""))) prefs.edit().putString("sdAuto", "/storage/" + best).apply();
+    }
+    void learnSdAll() {
+        if (sdLearned) return; sdLearned = true;
+        try { withFtp(new FtpWork<Void>() { public Void run(Ftp c) throws Exception { int k = 0; for (Ftp.Entry e : c.list("/Playlists")) { if (e.dir || !e.name.toLowerCase().matches(".*\\.m3u8?$") || k++ > 30) continue; learnSd(parseM3u(c.getBytes("/Playlists/" + e.name))); } return null; } }); }
+        catch (Exception e) { sdLearned = false; }
+    }
     JSONObject cfgJson() throws JSONException {
         JSONObject o = new JSONObject();
         for (String k : new String[]{"name", "ip", "sdPath", "internalPath", "ftpPort", "ftpUser", "ftpPass", "uploadDir", "hubUrl", "hubToken"}) o.put(k, cfg(k, ""));
@@ -119,7 +137,7 @@ public class Core {
         } catch (Exception ignored) {}
         return o;
     }
-    String rUrl(String k) throws IOException { String u = ctl.get(k); if (u == null) throw new IOException("还没找到播放器：确认播放器开着 DLNA（A&K 叫 AK Connect）、亮着屏，和手机在同一个 Wi-Fi"); return u; }
+    String rUrl(String k) throws IOException { String u = ctl.get(k); if (u == null) { discover(); u = ctl.get(k); } if (u == null) throw new IOException("还没找到播放器：确认播放器开着 DLNA（A&K 叫 AK Connect）、亮着屏，和手机在同一个 Wi-Fi"); return u; }
     String av(String action, String[]... a) throws IOException { return Upnp.soap(rUrl("avt"), Upnp.AV, action, plus(new String[][]{{"InstanceID", "0"}}, a), 8000); }
     String rc(String action, String[]... a) throws IOException { return Upnp.soap(rUrl("rc"), Upnp.RC, action, plus(new String[][]{{"InstanceID", "0"}, {"Channel", "Master"}}, a), 8000); }
     static String[][] plus(String[][] a, String[][] b) { String[][] o = new String[a.length + b.length][]; System.arraycopy(a, 0, o, 0, a.length); System.arraycopy(b, 0, o, a.length, b.length); return o; }
@@ -128,7 +146,9 @@ public class Core {
     static final Pattern ITEM = Pattern.compile("<(container|item)\\s([^>]*)>([\\s\\S]*?)</\\1>");
     static final Pattern RES = Pattern.compile("<res\\s([^>]*)>([^<]*)</res>");
     public JSONObject browse(String id, int start, int count) throws Exception {
-        String u = ctl.get("cd"); if (u == null) throw new IOException("还没找到播放器的曲库服务（DLNA 媒体服务器）");
+        String u = ctl.get("cd");
+        if (u == null) { discover(); u = ctl.get("cd"); }
+        if (u == null) throw new IOException("还没找到播放器的曲库服务：确认播放器亮着屏、开着 AK Connect，和手机在同一个 Wi-Fi，过几秒再点一次");
         String x = Upnp.soap(u, Upnp.CD, "Browse", new String[][]{{"ObjectID", id}, {"BrowseFlag", "BrowseDirectChildren"}, {"Filter", "*"}, {"StartingIndex", "" + start}, {"RequestedCount", "" + count}, {"SortCriteria", ""}}, 15000);
         String didl = Util.tag(x, "Result");
         JSONArray items = new JSONArray(); Matcher m = ITEM.matcher(didl);
@@ -144,6 +164,17 @@ public class Core {
         }
         JSONObject o = new JSONObject(); o.put("id", id); o.put("start", start); o.put("total", parseInt(Util.tag(x, "TotalMatches"))); o.put("items", items);
         return o;
+    }
+
+    static JSONObject didlSong(String didl) {
+        try {
+            Matcher m = ITEM.matcher(didl == null ? "" : didl); if (!m.find() || !m.group(1).equals("item")) return null;
+            String at = m.group(2), b = m.group(3); Matcher r = RES.matcher(b); String ra = ""; if (r.find()) ra = r.group(1);
+            String artist = Util.tag(b, "artist"); if (artist.isEmpty()) artist = Util.tag(b, "creator");
+            return new JSONObject().put("kind", "song").put("id", Util.attr(at, "id")).put("title", Util.tag(b, "title")).put("artist", artist).put("album", Util.tag(b, "album"))
+                .put("art", Util.tag(b, "albumArtURI")).put("proto", Util.attr(ra, "protocolInfo")).put("dur", Util.hms(Util.attr(ra, "duration")))
+                .put("sr", parseInt(Util.attr(ra, "sampleFrequency"))).put("bits", parseInt(Util.attr(ra, "bitsPerSample"))).put("didl", m.group(0));
+        } catch (Exception e) { return null; }
     }
 
     /* ---------- 播放 ---------- */
@@ -205,6 +236,7 @@ public class Core {
         nextIdx = i;
     }
     public JSONObject step(int d) throws Exception {
+        if (cur != null && cur.optBoolean("ext") && (queue.isEmpty() || pos < 0)) throw new IOException("这首是别的设备点的，下一首 / 上一首请在点歌的那台设备上切；或者在这里点一首歌接过来");
         if (queue.isEmpty()) throw new IOException("队列是空的");
         for (int n = 0; n < 30; n++) {
             Integer i;
@@ -228,9 +260,15 @@ public class Core {
                 pos = nextIdx; cur = queue.get(pos); lastStart = System.currentTimeMillis(); gapless++; saveQueue();
                 bg.execute(new Runnable() { public void run() { try { armNext(); } catch (Exception ignored) {} } });
             }
-            if (cur != null && !uri.isEmpty() && !uri.equals(cur.optString("url"))) {
+            // 播放器在放的不是“当前”：多半是另一台设备点的（或在机器上点的）→ 照播放器报的信息显示，歌词跟着走
+            if (!uri.isEmpty() && (cur == null || !uri.equals(cur.optString("url")))) {
                 int k = -1; for (int j = 0; j < queue.size(); j++) if (queue.get(j).optString("url").equals(uri)) { k = j; break; }
-                if (k >= 0) { pos = k; cur = queue.get(k); } else { cur = null; wantPlay = false; }
+                if (k >= 0) { pos = k; cur = queue.get(k); }
+                else {
+                    JSONObject it = didlSong(Util.tag(p, "TrackMetaData"));
+                    if (it != null) { it.put("url", uri).put("ext", true); if (it.optDouble("dur", 0) <= 0) it.put("dur", dur); }
+                    cur = it; wantPlay = false;
+                }
             }
         } catch (Exception e) { online = false; err = String.valueOf(e.getMessage()); }
         changed();
@@ -280,7 +318,7 @@ public class Core {
             if (cur != null) {
                 JSONObject c = new JSONObject(); c.put("title", cur.optString("title")); c.put("artist", cur.optString("artist")); c.put("album", cur.optString("album"));
                 String art = cur.optString("art"); c.put("art", art.isEmpty() ? "" : "/api/music/art?u=" + URLEncoder.encode(art, "UTF-8"));
-                c.put("sr", cur.optInt("sr")); c.put("bits", cur.optInt("bits")); c.put("url", cur.optString("url")); o.put("cur", c);
+                c.put("sr", cur.optInt("sr")); c.put("bits", cur.optInt("bits")); c.put("url", cur.optString("url")); c.put("ext", cur.optBoolean("ext")); o.put("cur", c);
             } else o.put("cur", JSONObject.NULL);
             o.put("pos", pos); o.put("queueLen", queue.size()); o.put("vol", vol == null ? JSONObject.NULL : vol); o.put("mode", mode);
             o.put("loud", loud == null ? JSONObject.NULL : loud); o.put("gapless", gapless);
@@ -439,9 +477,62 @@ public class Core {
                 if (out == null) out = new JSONObject().put("found", false).put("err", er);
             }
         } catch (Exception e) { er = String.valueOf(e.getMessage()); out = new JSONObject().put("found", false).put("err", er); }
+        // 都没找到、又不是纯音乐：填了群星地址的话，借电脑离线听写
+        if (!out.optBoolean("found") && !out.optBoolean("hidden") && er.isEmpty() && prefs.getBoolean("set_asr", true) && !cfg("hubUrl", "").isEmpty()) {
+            try {
+                JSONObject a = hub("GET", "/api/music/lyrics/asr?url=" + enc(s.optString("url")) + "&title=" + enc(s.optString("title")) + "&artist=" + enc(s.optString("artist")) + "&dur=" + (long) s.optDouble("dur", 0), null);
+                if (a != null && "done".equals(a.optString("state")) && !a.optString("text").isEmpty()) out = new JSONObject().put("found", true).put("synced", true).put("text", a.optString("text")).put("src", a.optString("src")).put("asr", true);
+                else if (a != null && ("running".equals(a.optString("state")) || "queued".equals(a.optString("state")))) return out.put("asr", a.optString("state")).put("q", q).put("needT2S", true);
+            } catch (Exception ignored) {}
+        }
+        // 外文歌的翻译只有网易云有：用的是 LRCLIB 的歌词时，去网易云找同一首借翻译（页面按时间对上）
+        if (out.optBoolean("found") && out.optString("trans").isEmpty() && !out.optString("text").isEmpty() && prefs.getBoolean("set_showTrans", true) && foreign(out.optString("text"))) {
+            try {
+                JSONObject r = lyrCands(q.getString("title"), q.getString("artist"), dur); JSONArray it = r.getJSONArray("items"); int tried = 0;
+                for (int i = 0; i < it.length() && tried < 2; i++) { JSONObject c = it.getJSONObject(i); if (!"163".equals(c.optString("src")) || (dur > 0 && Math.abs(c.optDouble("dur") - dur) > 4)) continue; tried++;
+                    try { JSONObject f = lyrFetch("163", c.getString("id")); if (!f.optString("trans").isEmpty()) { out.put("trans", f.optString("trans")).put("transSrc", "网易云 #" + c.getString("id")); break; } } catch (Exception ignored) {} }
+            } catch (Exception ignored) {}
+        }
         out.put("q", q).put("needT2S", true);
         if (er.isEmpty() || out.optBoolean("found")) synchronized (lyr) { if (lyr.size() > 300) lyr.remove(lyr.keySet().iterator().next()); lyr.put(key, out); }
         return out;
+    }
+    /* ---------- AI 解读歌词（DeepSeek 或任何 OpenAI 兼容接口）：密钥和“我的近况”只存在这台设备上 ---------- */
+    JSONObject aiConfig(JSONObject b) throws Exception {
+        if (b != null && b.length() > 0) {
+            SharedPreferences.Editor e = prefs.edit();
+            if (b.has("base")) e.putString("ai_base", b.optString("base").trim());
+            if (b.has("model")) e.putString("ai_model", b.optString("model").trim());
+            if (b.has("me")) e.putString("ai_me", b.optString("me").trim());
+            String k = b.optString("key", "").trim(); if (!k.isEmpty() && !k.matches("\\*+")) e.putString("ai_key", k);
+            if (b.optBoolean("clearKey")) e.remove("ai_key");
+            e.apply();
+        }
+        String key = prefs.getString("ai_key", "");
+        return new JSONObject().put("hasKey", !key.isEmpty()).put("keyTail", key.length() > 4 ? key.substring(key.length() - 4) : "").put("base", prefs.getString("ai_base", "").isEmpty() ? "https://api.deepseek.com" : prefs.getString("ai_base", ""))
+            .put("model", prefs.getString("ai_model", "").isEmpty() ? "deepseek-chat" : prefs.getString("ai_model", "")).put("me", prefs.getString("ai_me", ""));
+    }
+    JSONObject aiChat(JSONObject b) throws Exception {
+        String key = prefs.getString("ai_key", ""); if (key.isEmpty()) throw new IOException("还没填 AI 接口的密钥：设置 → AI 解读");
+        String base = prefs.getString("ai_base", ""); if (base.isEmpty()) base = "https://api.deepseek.com"; base = base.replaceAll("/+$", "");
+        String url = base.endsWith("/chat/completions") ? base : base + "/chat/completions";
+        String model = prefs.getString("ai_model", ""); if (model.isEmpty()) model = "deepseek-chat";
+        JSONArray in = b.optJSONArray("messages"), msgs = new JSONArray(); if (in == null || in.length() == 0) throw new IOException("没有内容");
+        for (int i = 0; i < in.length(); i++) { JSONObject m = in.getJSONObject(i); String r = m.optString("role"); if (!r.matches("system|user|assistant")) continue; String c = m.optString("content"); msgs.put(new JSONObject().put("role", r).put("content", c.length() > 24000 ? c.substring(0, 24000) : c)); }
+        JSONObject req = new JSONObject().put("model", model).put("messages", msgs).put("temperature", 0.8).put("max_tokens", 1600);
+        if (b.optBoolean("json")) req.put("response_format", new JSONObject().put("type", "json_object"));
+        Map<String, String> h = new HashMap<String, String>(); h.put("Content-Type", "application/json"); h.put("Authorization", "Bearer " + key);
+        Util.Resp r = Util.http("POST", url, h, req.toString().getBytes(Util.UTF8), 90000);
+        String txt = new String(r.body == null ? new byte[0] : r.body, Util.UTF8); JSONObject j;
+        try { j = new JSONObject(txt); } catch (Exception e) { throw new IOException("接口回的不是 JSON（" + r.code + "）"); }
+        if (r.code != 200) { Object er = j.opt("error"); throw new IOException(er instanceof JSONObject ? ((JSONObject) er).optString("message") : "接口出错 " + r.code); }
+        JSONArray ch = j.optJSONArray("choices"); String out = ch != null && ch.length() > 0 ? ch.getJSONObject(0).optJSONObject("message").optString("content") : "";
+        return new JSONObject().put("text", out).put("usage", j.opt("usage"));
+    }
+    static boolean foreign(String t) {
+        String s = t.replaceAll("\\[[^\\]]*\\]", ""); int han = 0, lat = 0, kana = 0;
+        for (int i = 0; i < s.length(); i++) { char c = s.charAt(i); if (c >= 0x4e00 && c <= 0x9fff) han++; else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) lat++; else if ((c >= 0x3040 && c <= 0x30ff) || (c >= 0xac00 && c <= 0xd7af)) kana++; }
+        double f = lat / 3.0 + kana; return f > han * 1.5 && f > 20;
     }
     JSONObject lyrUse(JSONObject s, JSONObject b) throws Exception {
         if (s == null) throw new IOException("现在没有在放的歌");
@@ -457,9 +548,9 @@ public class Core {
     /* ---------- 设置、单词、统计（统计由电脑上的群星记；填了群星地址就转过去） ---------- */
     JSONObject settings(JSONObject b) throws JSONException {
         SharedPreferences.Editor e = prefs.edit();
-        for (String k : new String[]{"wordTap", "showTrans", "autoLists"}) if (b.has(k)) e.putBoolean("set_" + k, b.optBoolean(k));
+        for (String k : new String[]{"wordTap", "showTrans", "autoLists", "npFollow", "asr", "autoFlac", "aiMirror"}) if (b.has(k)) e.putBoolean("set_" + k, b.optBoolean(k));
         e.apply();
-        JSONObject s = new JSONObject(); for (String k : new String[]{"wordTap", "showTrans", "autoLists"}) s.put(k, prefs.getBoolean("set_" + k, true));
+        JSONObject s = new JSONObject(); for (String k : new String[]{"wordTap", "showTrans", "autoLists", "npFollow", "asr", "autoFlac", "aiMirror"}) s.put(k, prefs.getBoolean("set_" + k, true));
         return new JSONObject().put("settings", s).put("vocab", !cfg("hubUrl", "").isEmpty());
     }
     JSONObject hub(String method, String p, JSONObject body) throws Exception {
@@ -530,9 +621,11 @@ public class Core {
     void mkPidx(JSONObject j) throws JSONException {
         Map<String, JSONObject> bp = new HashMap<String, JSONObject>(); Map<String, String> bu = new HashMap<String, String>();
         JSONArray a = j.getJSONArray("entries");
-        for (int i = 0; i < a.length(); i++) { JSONObject x = a.getJSONObject(i); String p = x.optString("_path"); bp.put(p.toLowerCase(), x); bu.put(x.optString("url"), p); }
-        pidx = bp; pidxUrl = bu; pidxTs = j.getLong("ts");
+        Map<String, JSONObject> bs = new HashMap<String, JSONObject>();
+        for (int i = 0; i < a.length(); i++) { JSONObject x = a.getJSONObject(i); String p = x.optString("_path"); bp.put(p.toLowerCase(), x); bu.put(x.optString("url"), p); if (!p.startsWith(pre() + "/")) bs.put(sdRest(p), x); }
+        pidxSd = bs; pidx = bp; pidxUrl = bu; pidxTs = j.getLong("ts");
     }
+    volatile Map<String, JSONObject> pidxSd;
     volatile Map<Long, String> fidx;   // FTP 文件大小 → 路径（存储卡上的歌 FTP 看不到）
 
     /* ---------- File Drop（FTP） ---------- */
@@ -570,6 +663,7 @@ public class Core {
         JSONObject m = pmeta(); JSONObject e = m.optJSONObject(n); if (e == null) e = new JSONObject(); e.put("dirty", dirty).put("at", System.currentTimeMillis()); m.put(n, e); savePmeta(m);
     }
     JSONObject plList() throws Exception {
+        bg.execute(new Runnable() { public void run() { learnSdAll(); } });
         List<String> ca = null; String er = "";
         try { ca = withFtp(new FtpWork<List<String>>() { public List<String> run(Ftp c) throws Exception { List<String> o = new ArrayList<String>(); for (Ftp.Entry e : c.list("/Playlists")) if (!e.dir && e.name.toLowerCase().matches(".*\\.m3u8?$")) o.add(e.name.replaceAll("(?i)\\.m3u8?$", "")); return o; } }); }
         catch (Exception e) { er = String.valueOf(e.getMessage()); }
@@ -599,6 +693,9 @@ public class Core {
             try {
                 byte[] b = withFtp(new FtpWork<byte[]>() { public byte[] run(Ftp c) throws Exception { return c.getBytes("/Playlists/" + n + ".m3u"); } });
                 lines = parseM3u(b);
+                learnSd(lines);
+                // 以前写错了卡名（/storage/sdcard1）的歌单：改成机器上真实的卡名，写回去
+                if (!sdPath().endsWith("/sdcard1")) { List<String> fx = new ArrayList<String>(); for (String l : lines) fx.add(fixSd(l)); if (!fx.equals(lines)) { lines = fx; writeMirror(n, lines, true); try { plPush(n); } catch (Exception ignored) {} } }
                 File mf = new File(pdir(), n + ".m3u");
                 List<String> old = mf.exists() ? parseM3u(readBytes(mf)) : null;
                 if (old == null || !old.equals(lines)) writeMirror(n, lines, false);
@@ -615,6 +712,8 @@ public class Core {
         JSONArray entries = new JSONArray(); int ok = 0;
         for (String p : lines) {
             JSONObject it = pidx == null ? null : pidx.get(p.toLowerCase());
+            boolean sd = !p.startsWith(pre() + "/");
+            if (it == null && sd && pidxSd != null) it = pidxSd.get(sdRest(p));
             String file = p.substring(p.lastIndexOf('/') + 1);
             JSONObject e = new JSONObject().put("path", p).put("file", file).put("sd", !p.startsWith(pre() + "/")).put("item", it == null ? JSONObject.NULL : it);
             if (it != null) ok++;
@@ -649,6 +748,7 @@ public class Core {
             JSONObject x = items.getJSONObject(i); String p = pidxUrl == null ? null : pidxUrl.get(x.optString("url"));
             if (p == null && !rebuilt) { rebuilt = true; try { pathIndex(true); } catch (Exception ignored) {} p = pidxUrl == null ? null : pidxUrl.get(x.optString("url")); }
             if (p == null) { miss.put(x.optString("title")); continue; }
+            p = fixSd(p);
             if (cur0.contains(p) || add.contains(p)) dup++; else add.add(p);
         }
         JSONArray all = new JSONArray(); for (String p : cur0) all.put(p); for (String p : add) all.put(p);
@@ -698,6 +798,7 @@ public class Core {
         try {
             withFtp(new FtpWork<Void>() { public Void run(Ftp c) throws Exception { c.mkdirs(d); c.stor(j.path, in, len, new Ftp.Progress() { public void bytes(int n) { j.tickBytes(n); } }); return null; } });
             j.state = "done"; fidx = null; pidx = null;
+            if (Meta.AUDIO.matcher(nm).find() && meta != null) synchronized (meta.imports) { meta.imports.remove(pre() + j.path); meta.imports.add(pre() + j.path); }
         } catch (Exception e) { j.state = "err"; j.err = String.valueOf(e.getMessage()); throw e; }
         return new JSONObject().put("job", j.json());
     }
@@ -758,7 +859,7 @@ public class Core {
         if (p.equals("browse")) return browse(q.containsKey("id") ? q.get("id") : "0", parseInt(q.get("start")), Math.min(200, q.containsKey("count") ? parseInt(q.get("count")) : 100));
         if (p.equals("play")) return play(body.optJSONArray("items") == null ? new JSONArray() : body.optJSONArray("items"), body.optInt("index", 0));
         if (p.equals("pause")) { av("Pause"); wantPlay = false; return status(); }
-        if (p.equals("resume")) { av("Play", new String[]{"Speed", "1"}); wantPlay = cur != null; return status(); }
+        if (p.equals("resume")) { av("Play", new String[]{"Speed", "1"}); wantPlay = cur != null && !cur.optBoolean("ext"); return status(); }
         if (p.equals("stop")) { av("Stop"); wantPlay = false; return status(); }
         if (p.equals("next")) return step(1);
         if (p.equals("prev")) return step(-1);
@@ -767,7 +868,10 @@ public class Core {
         if (p.equals("loudness")) return loudness(body.has("on") ? body.optBoolean("on") : null);
         if (p.equals("mode")) return setMode(body.optString("mode"));
         if (p.equals("sleep")) return setSleep(body);
-        if (p.startsWith("meta/")) {   // 整理（补全信息）在电脑上的群星里做：转过去
+        if (p.startsWith("meta/")) return meta.api(p, q, body);     // 整理：手机上直接做
+        if (p.equals("inbox") || p.startsWith("inbox/")) return inbox.api(p, q, body);   // 手机上的导入文件夹
+        if (p.startsWith("flac/")) return caflac.api(p, q, body);   // m4a 转 flac：手机上自己转，不用电脑
+        if (false) {
             if (cfg("hubUrl", "").isEmpty()) throw new IOException("整理歌曲信息要用电脑上的群星：在设置里填群星地址和口令");
             StringBuilder qs = new StringBuilder(); for (Map.Entry<String, String> e : q.entrySet()) { if (e.getKey().equals("k")) continue; qs.append(qs.length() == 0 ? "?" : "&").append(enc(e.getKey())).append('=').append(enc(e.getValue())); }
             JSONObject r = hub(body.length() > 0 || p.equals("meta/stop") ? "POST" : "GET", "/api/music/" + p + qs, body.length() > 0 || p.equals("meta/stop") ? body : null);
@@ -777,6 +881,8 @@ public class Core {
         if (p.equals("lyrics/search")) { JSONObject q0 = cur == null ? new JSONObject().put("title", "").put("artist", "").put("dur", 0) : lyrQuery(cur); return lyrCands(q.containsKey("title") ? q.get("title") : q0.optString("title"), q.containsKey("artist") ? q.get("artist") : q0.optString("artist"), q.containsKey("dur") && parseInt(q.get("dur")) > 0 ? parseInt(q.get("dur")) : q0.optDouble("dur", 0)); }
         if (p.equals("lyrics/use")) return lyrUse(cur, body);
         if (p.equals("settings")) return settings(body);
+        if (p.equals("ai/config")) return aiConfig(body);
+        if (p.equals("ai/chat")) return aiChat(body);
         if (p.equals("word/lookup")) return wordLookup(q.get("w"));
         if (p.equals("word/add")) return wordAdd(body);
         if (p.equals("stats")) { JSONObject r = null; try { r = hub("GET", "/api/music/stats", null); } catch (Exception ignored) {} if (r == null) throw new IOException("听歌统计在电脑上的群星里记；在设置里填群星地址就能看到"); return r; }
